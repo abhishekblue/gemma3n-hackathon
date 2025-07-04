@@ -9,7 +9,7 @@ lerna-debug.log*
 # Python / Flask specific
 __pycache__/
 *.pyc
-/vevn/
+venv
 .env
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
