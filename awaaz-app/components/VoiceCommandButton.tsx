@@ -8,6 +8,7 @@ const API_URL = 'https://symmetrical-invention-vg4pvpjvrvxcprw9-8000.app.github.
 const VoiceCommandButton = () => {
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [aiReply, setAiReply] = React.useState('');
 
   const handleVoiceCommand = async () => {
     console.log('Voice command button pressed');
@@ -34,6 +35,16 @@ const VoiceCommandButton = () => {
         const responseData = await response.json();
         console.log('API Response:', responseData);
         // You might want to show a success message to the user
+
+        const generateResponse = await fetch(`${API_URL}/generate-response`, {
+          method: 'POST',
+        });
+
+        if (generateResponse.ok) {
+          const generateResponseData = await generateResponse.json();
+          setAiReply(generateResponseData.response);
+        }
+
       } else {
         const errorText = await response.text();
         console.error('API Error:', response.status, errorText);
@@ -62,6 +73,7 @@ const VoiceCommandButton = () => {
         )}
       </TouchableOpacity>
       {error && <Text style={styles.errorText}>{error}</Text>}
+      {aiReply ? <Text style={styles.aiReply}>{aiReply}</Text> : null}
     </View>
   );
 };
@@ -87,6 +99,11 @@ const styles = StyleSheet.create({
   errorText: {
     marginTop: 20,
     color: 'red',
+    textAlign: 'center',
+  },
+  aiReply: {
+    marginTop: 20,
+    color: 'black',
     textAlign: 'center',
   },
 });

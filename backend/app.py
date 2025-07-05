@@ -21,6 +21,9 @@ class MedicineLog(BaseModel):
     medicine_name: str
     dosage: str
 
+class GenerateRequest(BaseModel):
+    prompt: str
+
 # This list is from your old code, keeping it for now.
 medicines_db: List[str] = []
 
@@ -40,3 +43,8 @@ async def add_medicine_log(log: MedicineLog):
 @app.get("/medicines")
 def get_medicines():
     return {"medicines": medicines_db}
+
+@app.post("/generate-response")
+async def generate_response():
+    # Stage 1: Hardcoded empathetic response
+    return {"response": "Medicine added. Please remember to take care of yourself. I'm here if you need anything."}
