@@ -1,60 +1,160 @@
-import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, TouchableOpacity, StyleSheet, Text, Platform } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import { useAudioRecorder, AudioModule, RecordingPresets, AudioRecorder } from 'expo-audio';
+import * as FileSystem from 'expo-file-system';
 
-// It's recommended to use environment variables for the API URL
-const API_URL = 'https://symmetrical-invention-vg4pvpjvrvxcprw9-8000.app.github.dev'; // Replace with your actual backend URL
+// Assuming your backend is running locally on the same Wi-Fi
+// For local development, use your machine's local IP address or localhost
+// For web, 'localhost' should work. For physical devices, use your machine's IP.
+const API_URL = 'https://symmetrical-invention-vg4pvpjvrvxcprw9-8000.app.github.dev'; // Adjust if your backend is on a different IP
 
 const VoiceCommandButton = () => {
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [aiReply, setAiReply] = React.useState('');
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const [isRecording, setIsRecording] = useState(false);
+  const [transcription, setTranscription] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleVoiceCommand = async () => {
-    console.log('Voice command button pressed');
+  useEffect(() => {
+    (async () => {
+      if (Platform.OS !== 'web') {
+        const { granted } = await AudioModule.requestRecordingPermissionsAsync();
+        if (!granted) {
+          setError('Permission to access microphone is required!');
+        }
+      }
+    })();
+  }, []);
+
+  async function startRecording() {
+    try {
+      setError(null);
+      setTranscription(null);
+      setIsLoading(true);
+
+      if (Platform.OS !== 'web') {
+        await AudioModule.setAudioModeAsync({
+          allowsRecording: true,
+          playsInSilentMode: true,
+        });
+      }
+
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+      setIsRecording(true);
+      setIsLoading(false);
+      console.log('Recording started');
+    } catch (err) {
+      console.error('Failed to start recording', err);
+      setError('Failed to start recording.');
+      setIsLoading(false);
+    }
+  }
+
+  async function stopRecording() {
     setIsLoading(true);
-    setError(null);
-
-    // In a real application, you would get the voice input here
-    // and convert it to text to send to the backend.
-    const medicineData = {
-      medicine_name: 'Paracetamol', // This should come from voice input
-      dosage: '500mg', // This should also come from voice input
-    };
+    setIsRecording(false);
+    if (!audioRecorder.isRecording) {
+      setError('No recording in progress.');
+      setIsLoading(false);
+      return;
+    }
 
     try {
-      const response = await fetch(`${API_URL}/add_medicine_log`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(medicineData),
-      });
-
-      if (response.ok) {
-        const responseData = await response.json();
-        console.log('API Response:', responseData);
-        // You might want to show a success message to the user
-
-        const generateResponse = await fetch(`${API_URL}/generate-response`, {
-          method: 'POST',
+      await audioRecorder.stop();
+      if (Platform.OS !== 'web') {
+        await AudioModule.setAudioModeAsync({
+          allowsRecording: false,
+          playsInSilentMode: true,
         });
-
-        if (generateResponse.ok) {
-          const generateResponseData = await generateResponse.json();
-          setAiReply(generateResponseData.response);
-        }
-
-      } else {
-        const errorText = await response.text();
-        console.error('API Error:', response.status, errorText);
-        setError(`Error: ${response.status} - ${errorText}`);
       }
-    } catch (e) {
-      console.error('API Request Failed:', e);
-      setError('Failed to connect to the server.');
+      const uri = audioRecorder.uri;
+      console.log('Recording stopped and stored at', uri);
+
+      if (uri) {
+        await uploadAudio(uri);
+      } else {
+        setError('Failed to get recording URI.');
+      }
+    } catch (err) {
+      console.error('Failed to stop recording', err);
+      setError('Failed to stop recording.');
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function uploadAudio(audioUri: string) {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (Platform.OS === 'web') {
+        const formData = new FormData();
+        const audioBlobResponse = await fetch(audioUri);
+        const blob = await audioBlobResponse.blob();
+        formData.append('audio_file', blob, 'audio.wav'); // Changed field name to 'audio_file'
+
+        console.log('Uploading audio to:', `${API_URL}/transcribe`);
+        const webResponse = await fetch(`${API_URL}/transcribe`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (webResponse.ok) {
+          const responseData = await webResponse.json();
+          console.log('Transcription API Response:', responseData);
+          setTranscription(responseData.transcription);
+        } else {
+          const errorText = await webResponse.text();
+          console.error('Transcription API Error:', webResponse.status, errorText);
+          setError(`Error: ${webResponse.status} - ${errorText}`);
+        }
+      } else {
+        // For native (iOS/Android), use FileSystem.uploadAsync
+        const fileInfo = await FileSystem.getInfoAsync(audioUri);
+        if (!fileInfo.exists) {
+          throw new Error('Audio file does not exist.');
+        }
+        const fileExtension = audioUri.split('.').pop();
+        const fileName = `recording.${fileExtension || 'm4a'}`;
+        const mimeType = `audio/${fileExtension || 'm4a'}`;
+
+        console.log('Uploading audio to:', `${API_URL}/transcribe`, 'using FileSystem.uploadAsync');
+        const nativeResponse = await FileSystem.uploadAsync(
+          `${API_URL}/transcribe`,
+          audioUri,
+          {
+            httpMethod: 'POST',
+            uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+            fieldName: 'audio_file', // Changed field name to 'audio_file'
+            mimeType: mimeType,
+            // fileName is not a valid option for MULTIPART uploadType
+          }
+        );
+
+        if (nativeResponse.status === 200) { // Assuming 200 OK for success
+          const responseData = JSON.parse(nativeResponse.body);
+          console.log('Transcription API Response:', responseData);
+          setTranscription(responseData.transcription);
+        } else {
+          console.error('Transcription API Error:', nativeResponse.status, nativeResponse.body);
+          setError(`Error: ${nativeResponse.status} - ${nativeResponse.body}`);
+        }
+      }
+    } catch (e) {
+      console.error('Audio Upload Failed:', e);
+      setError('Failed to upload audio or connect to the server.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const handlePress = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
     }
   };
 
@@ -62,18 +162,19 @@ const VoiceCommandButton = () => {
     <View style={styles.container}>
       <TouchableOpacity
         style={[styles.button, isLoading && styles.buttonLoading]}
-        onPress={handleVoiceCommand}
+        onPress={handlePress}
         disabled={isLoading}
-        accessibilityLabel="Start voice command"
+        accessibilityLabel={isRecording ? "Stop recording" : "Start recording"}
       >
         {isLoading ? (
-          <Text>Loading...</Text>
+          <Text>Processing...</Text>
         ) : (
-          <FontAwesome name="microphone" size={80} color="black" />
+          <FontAwesome name={isRecording ? "stop-circle" : "microphone"} size={80} color="black" />
         )}
       </TouchableOpacity>
       {error && <Text style={styles.errorText}>{error}</Text>}
-      {aiReply ? <Text style={styles.aiReply}>{aiReply}</Text> : null}
+      {transcription ? <Text style={styles.transcriptionText}>{transcription}</Text> : null}
+      {isRecording && <Text style={styles.recordingStatus}>Recording...</Text>}
     </View>
   );
 };
@@ -101,10 +202,17 @@ const styles = StyleSheet.create({
     color: 'red',
     textAlign: 'center',
   },
-  aiReply: {
+  transcriptionText: {
     marginTop: 20,
     color: 'black',
     textAlign: 'center',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  recordingStatus: {
+    marginTop: 10,
+    color: 'blue',
+    fontSize: 16,
   },
 });
 

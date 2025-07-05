@@ -1,8 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from pydantic import BaseModel
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
-import logging # FIX #1: Added missing import
+import logging
+import io
+from faster_whisper import WhisperModel
 
 app = FastAPI()
 
@@ -16,6 +18,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Initialize Whisper model globally to load it once
+# You can choose "tiny.en" or "base.en" based on your needs.
+# "tiny.en" is faster but less accurate, "base.en" is slower but more accurate.
+model = WhisperModel("tiny.en", device="cpu", compute_type="int8")
 
 class MedicineLog(BaseModel):
     medicine_name: str
@@ -31,12 +38,9 @@ medicines_db: List[str] = []
 def read_root():
     return {"message": "Welcome to the Awaaz Engine"}
 
-# FIX #2: Renamed endpoint from "/add" to "/add_medicine_log" to match the frontend call
 @app.post("/add_medicine_log")
 async def add_medicine_log(log: MedicineLog):
-    # For now, we just print to the console to confirm we received it
     print(f"SUCCESS: Received medicine log: {log.dict()}")
-    # The logging call will now work correctly
     logging.info(f"SUCCESS: Received medicine log: {log.dict()}")
     return {"status": "success", "data_received": log.dict()}
 
@@ -46,5 +50,22 @@ def get_medicines():
 
 @app.post("/generate-response")
 async def generate_response():
-    # Stage 1: Hardcoded empathetic response
     return {"response": "Medicine added. Please remember to take care of yourself. I'm here if you need anything."}
+
+@app.post("/transcribe")
+async def transcribe_audio(audio_file: UploadFile = File(...)):
+    try:
+        # Read the audio file into a BytesIO object
+        audio_bytes = io.BytesIO(await audio_file.read())
+
+        # Transcribe the audio
+        segments, info = model.transcribe(audio_bytes, beam_size=5)
+
+        transcription = ""
+        for segment in segments:
+            transcription += segment.text
+
+        return {"transcription": transcription}
+    except Exception as e:
+        logging.error(f"Error during transcription: {e}")
+        return {"error": str(e)}, 500
