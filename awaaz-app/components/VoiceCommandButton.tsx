@@ -9,7 +9,11 @@ import * as FileSystem from 'expo-file-system';
 // For web, 'localhost' should work. For physical devices, use your machine's IP.
 const API_URL = 'https://symmetrical-invention-vg4pvpjvrvxcprw9-8000.app.github.dev'; // Adjust if your backend is on a different IP
 
-const VoiceCommandButton = () => {
+interface VoiceCommandButtonProps {
+  onEmpatheticText: (text: string) => void;
+}
+
+const VoiceCommandButton: React.FC<VoiceCommandButtonProps> = ({ onEmpatheticText }) => {
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [isRecording, setIsRecording] = useState(false);
   const [transcription, setTranscription] = useState<string | null>(null);
@@ -95,16 +99,19 @@ const VoiceCommandButton = () => {
         const blob = await audioBlobResponse.blob();
         formData.append('audio_file', blob, 'audio.wav'); // Changed field name to 'audio_file'
 
-        console.log('Uploading audio to:', `${API_URL}/transcribe`);
-        const webResponse = await fetch(`${API_URL}/transcribe`, {
+        console.log('Uploading audio to:', `${API_URL}/awaaz-command`);
+        const webResponse = await fetch(`${API_URL}/awaaz-command`, {
           method: 'POST',
           body: formData,
         });
 
         if (webResponse.ok) {
           const responseData = await webResponse.json();
-          console.log('Transcription API Response:', responseData);
-          setTranscription(responseData.transcription);
+          console.log('API Response:', responseData);
+          setTranscription(responseData.response);
+          if (onEmpatheticText) {
+            onEmpatheticText(responseData.response);
+          }
         } else {
           const errorText = await webResponse.text();
           console.error('Transcription API Error:', webResponse.status, errorText);
@@ -120,9 +127,9 @@ const VoiceCommandButton = () => {
         const fileName = `recording.${fileExtension || 'm4a'}`;
         const mimeType = `audio/${fileExtension || 'm4a'}`;
 
-        console.log('Uploading audio to:', `${API_URL}/transcribe`, 'using FileSystem.uploadAsync');
+        console.log('Uploading audio to:', `${API_URL}/awaaz-command`, 'using FileSystem.uploadAsync');
         const nativeResponse = await FileSystem.uploadAsync(
-          `${API_URL}/transcribe`,
+          `${API_URL}/awaaz-command`,
           audioUri,
           {
             httpMethod: 'POST',
@@ -135,8 +142,11 @@ const VoiceCommandButton = () => {
 
         if (nativeResponse.status === 200) { // Assuming 200 OK for success
           const responseData = JSON.parse(nativeResponse.body);
-          console.log('Transcription API Response:', responseData);
-          setTranscription(responseData.transcription);
+          console.log('API Response:', responseData);
+          setTranscription(responseData.response);
+          if (onEmpatheticText) {
+            onEmpatheticText(responseData.response);
+          }
         } else {
           console.error('Transcription API Error:', nativeResponse.status, nativeResponse.body);
           setError(`Error: ${nativeResponse.status} - ${nativeResponse.body}`);
