@@ -11,7 +11,7 @@ const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ text }) => {
       if (!text) return;
 
       try {
-        const response = await fetch('https://symmetrical-invention-vg4pvpjvrvxcprw9-8081.app.github.dev/text-to-speech', {
+        const response = await fetch('https://symmetrical-invention-vg4pvpjvrvxcprw9-8000.app.github.dev/text-to-speech', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

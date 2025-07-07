@@ -7,8 +7,11 @@ import logging
 import io
 import httpx
 import json
+import torch
+import numpy as np
+import soundfile as sf
+from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
 from faster_whisper import WhisperModel
-from TTS.api import TTS
 
 app = FastAPI()
 
@@ -28,8 +31,10 @@ app.add_middleware(
 # "tiny.en" is faster but less accurate, "base.en" is slower but more accurate.
 model = WhisperModel("base.en", device="cpu", compute_type="int8")
 
-# Initialize Coqui TTS model globally
-tts_model = TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC", progress_bar=False, gpu=False)
+# Initialize Hugging Face SpeechT5 models globally
+processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
+model_tts = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
+vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
 
 medicines_storage: List[Dict[str, Any]] = []
 in_progress_medicine: Dict[str, Any] = {}
@@ -144,15 +149,24 @@ async def text_to_speech(request: Dict[str, str]) -> StreamingResponse:
     if not text:
         raise HTTPException(status_code=400, detail="No text provided for speech generation.")
 
+    inputs = processor(text=text, return_tensors="pt")
+    # Use a default speaker embedding (e.g., a zero tensor or a pre-defined one if available)
+    # For SpeechT5, a common approach for a default voice is to use a zero tensor or a specific pre-trained embedding.
+    # Here, we'll create a dummy one for demonstration. In a real scenario, you'd use a proper default.
+    # A common size for SpeechT5 speaker embeddings is 512.
+    dummy_speaker_embeddings = torch.zeros((1, 512)) # Example: a zero tensor as a placeholder
+    speech = model_tts.generate_speech(inputs["input_ids"], dummy_speaker_embeddings, vocoder=vocoder)
+
+    # Convert the tensor to a numpy array and normalize to 16-bit PCM
+    speech_np = speech.cpu().numpy()
+    speech_np = (speech_np * 32767).astype(np.int16) # Normalize to 16-bit PCM
+
+    buffer = io.BytesIO()
+    sf.write(buffer, speech_np, samplerate=16000, format='WAV')
+    buffer.seek(0)
+
     async def generate_audio_chunks() -> AsyncIterable[bytes]:
-        audio_stream = tts_model.tts_stream(text)
-        buffer = io.BytesIO()
-        for chunk in audio_stream:
-            buffer.write(chunk)
-            buffer.seek(0)
-            yield buffer.read()
-            buffer.seek(0)
-            buffer.truncate(0)
+        yield buffer.read()
 
     return StreamingResponse(generate_audio_chunks(), media_type="audio/wav")
 
