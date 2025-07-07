@@ -12,6 +12,9 @@ import numpy as np
 import soundfile as sf
 from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
 from faster_whisper import WhisperModel
+import os
+import subprocess
+import re # Import the re module
 
 app = FastAPI()
 
@@ -29,7 +32,7 @@ app.add_middleware(
 # Initialize Whisper model globally to load it once
 # You can choose "tiny.en" or "base.en" based on your needs.
 # "tiny.en" is faster but less accurate, "base.en" is slower but more accurate.
-model = WhisperModel("base.en", device="cpu", compute_type="int8")
+model = WhisperModel("small.en", device="cpu", compute_type="int8")
 
 # Initialize Hugging Face SpeechT5 models globally
 processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
@@ -72,24 +75,55 @@ def read_root():
 @app.post("/awaaz-command")
 async def awaaz_command(audio_file: UploadFile = File(...)):
     global in_progress_medicine
+    temp_audio_path = "temp_audio.webm"
+    converted_audio_path = "converted_audio.wav"
+
     try:
-        audio_bytes = io.BytesIO(await audio_file.read())
+        # Save the uploaded audio file temporarily
+        with open(temp_audio_path, "wb") as f:
+            f.write(await audio_file.read())
+
+        # Convert the audio file using ffmpeg
+        # -i: input file
+        # -ar 16000: set audio sampling rate to 16000 Hz
+        # -ac 1: set number of audio channels to 1 (mono)
+        # -acodec pcm_s16le: set audio codec to 16-bit signed little-endian PCM (WAV compatible)
+        ffmpeg_command = [
+            "ffmpeg",
+            "-i", temp_audio_path,
+            "-ar", "16000",
+            "-ac", "1",
+            "-acodec", "pcm_s16le",
+            converted_audio_path
+        ]
+        
+        logging.info(f"Executing FFmpeg command: {' '.join(ffmpeg_command)}")
+        subprocess.run(ffmpeg_command, check=True, capture_output=True)
+        logging.info("FFmpeg conversion successful.")
+
+        # Read the converted audio file for transcription
+        with open(converted_audio_path, "rb") as f:
+            audio_bytes = io.BytesIO(f.read())
+
         segments, _ = model.transcribe(audio_bytes, beam_size=5)
         transcribed_text = "".join(segment.text for segment in segments)
         logging.info(f"Transcribed audio: {transcribed_text}")
-        print (transcribed_text)
+        processed_text = transcribed_text.strip().lower()
+        print(processed_text)
 
-        # If the user says "clear" or "cancel", reset the in-progress medicine
-        if transcribed_text.strip().lower() in ["clear", "cancel"]:
+        # Use regex to check for "clear" or "cancel" as whole words, ignoring punctuation
+        if re.search(r'\b(clear|cancel)\b', processed_text):
             in_progress_medicine = {}
-            return {"response": "Okay, I've cancelled the current medicine entry."}
+            return {"response_text": "Okay, I've cancelled the current medicine entry.", "is_final": True}
 
         extraction_prompt = f"""You are a data extraction tool. From the following text, extract and return only the medicine name, strength, and frequency as a JSON object with the keys "name", "strength", and "frequency". If any of these details are not mentioned in the text, set their value to null. Respond only with the JSON, with no extra explanation or commentary.
 
 Example:
 Text: add Paracetamol 500mg twice a day
 Your response: {{"name": "Paracetamol", "strength": "500mg", "frequency": "twice a day"}}
-
+Few points to consider:
+- "If the user says 'one', the frequency is 'once a day'."
+- "If the user says 'three times', the frequency is 'three times a day'."
 Now process this input:
 {transcribed_text}"""
         
@@ -118,7 +152,7 @@ Now process this input:
                 
                 # Clear the in-progress medicine for the next conversation
                 in_progress_medicine = {}
-                return {"response": response_text}
+                return {"response_text": response_text, "is_final": True}
             else:
                 # Slots are missing, generate a follow-up question
                 missing_slot = missing_slots[0]
@@ -128,20 +162,31 @@ Now process this input:
                     "frequency": "Ask the user how many times a day they need to take this medicine."
                 }
                 
-                follow_up_prompt = f"You are Awaaz, a caring health companion. The user is adding a medicine but some details are missing. {question_map.get(missing_slot, 'Ask for the missing information.')} Keep the question concise and friendly."
+                follow_up_prompt = f"You are Awaaz, a caring health companion. The user is adding a medicine but some details are missing. {question_map.get(missing_slot, 'Ask for the missing information.')} Keep the question concise and friendly and ask question(s) like you are already in the middle of the conversation and not like you are starting the conversation."
                 response_text = await generate_ollama_response(follow_up_prompt)
-                return {"response": response_text}
+                return {"response_text": response_text, "is_final": False}
 
         except json.JSONDecodeError as e:
             logging.error(f"Error parsing JSON from Ollama extraction: {e}")
             # If JSON parsing fails, ask a generic clarifying question
-            prompt = f"You are Awaaz, a caring health companion. The user said: '{transcribed_text}'. You couldn't understand the details. Ask the user to please repeat the medicine information."
+            prompt = f"You are Awaaz, a caring health companion. The user said: '{transcribed_text}'. You couldn't understand the details. Ask the user to please repeat the medicine information. And ask question(s) like you are already in the middle of the conversation and not like you are starting the conversation."
             response_text = await generate_ollama_response(prompt)
-            return {"response": response_text}
+            return {"response_text": response_text, "is_final": False}
 
+    except subprocess.CalledProcessError as e:
+        logging.error(f"FFmpeg error: {e.stderr.decode()}")
+        raise HTTPException(status_code=500, detail=f"Audio conversion failed: {e.stderr.decode()}")
     except Exception as e:
         logging.error(f"Error during processing: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        # Clean up temporary files
+        if os.path.exists(temp_audio_path):
+            os.remove(temp_audio_path)
+            logging.info(f"Cleaned up {temp_audio_path}")
+        if os.path.exists(converted_audio_path):
+            os.remove(converted_audio_path)
+            logging.info(f"Cleaned up {converted_audio_path}")
 
 @app.post("/text-to-speech")
 async def text_to_speech(request: Dict[str, str]) -> StreamingResponse:

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { View, TouchableOpacity, StyleSheet, Text, Platform } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useAudioRecorder, AudioModule, RecordingPresets, AudioRecorder } from 'expo-audio';
@@ -10,13 +10,16 @@ import * as FileSystem from 'expo-file-system';
 const API_URL = 'https://symmetrical-invention-vg4pvpjvrvxcprw9-8000.app.github.dev'; // Adjust if your backend is on a different IP
 
 interface VoiceCommandButtonProps {
-  onEmpatheticText: (text: string) => void;
+  onEmpatheticText: (response: { response_text: string; is_final: boolean; }) => void;
 }
 
-const VoiceCommandButton: React.FC<VoiceCommandButtonProps> = ({ onEmpatheticText }) => {
+export interface VoiceCommandButtonRef {
+  startRecording: () => void;
+}
+
+const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonProps>(({ onEmpatheticText }, ref) => {
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [isRecording, setIsRecording] = useState(false);
-  const [transcription, setTranscription] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,10 +34,13 @@ const VoiceCommandButton: React.FC<VoiceCommandButtonProps> = ({ onEmpatheticTex
     })();
   }, []);
 
+  useImperativeHandle(ref, () => ({
+    startRecording,
+  }));
+
   async function startRecording() {
     try {
       setError(null);
-      setTranscription(null);
       setIsLoading(true);
 
       if (Platform.OS !== 'web') {
@@ -108,9 +114,8 @@ const VoiceCommandButton: React.FC<VoiceCommandButtonProps> = ({ onEmpatheticTex
         if (webResponse.ok) {
           const responseData = await webResponse.json();
           console.log('API Response:', responseData);
-          setTranscription(responseData.response);
           if (onEmpatheticText) {
-            onEmpatheticText(responseData.response);
+            onEmpatheticText(responseData);
           }
         } else {
           const errorText = await webResponse.text();
@@ -143,9 +148,8 @@ const VoiceCommandButton: React.FC<VoiceCommandButtonProps> = ({ onEmpatheticTex
         if (nativeResponse.status === 200) { // Assuming 200 OK for success
           const responseData = JSON.parse(nativeResponse.body);
           console.log('API Response:', responseData);
-          setTranscription(responseData.response);
           if (onEmpatheticText) {
-            onEmpatheticText(responseData.response);
+            onEmpatheticText(responseData);
           }
         } else {
           console.error('Transcription API Error:', nativeResponse.status, nativeResponse.body);
@@ -183,11 +187,9 @@ const VoiceCommandButton: React.FC<VoiceCommandButtonProps> = ({ onEmpatheticTex
         )}
       </TouchableOpacity>
       {error && <Text style={styles.errorText}>{error}</Text>}
-      {transcription ? <Text style={styles.transcriptionText}>{transcription}</Text> : null}
-      {isRecording && <Text style={styles.recordingStatus}>Recording...</Text>}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -211,18 +213,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
     color: 'red',
     textAlign: 'center',
-  },
-  transcriptionText: {
-    marginTop: 20,
-    color: 'black',
-    textAlign: 'center',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  recordingStatus: {
-    marginTop: 10,
-    color: 'blue',
-    fontSize: 16,
   },
 });
 
