@@ -1,20 +1,21 @@
+import wave
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
-from typing import List, Dict, Any, AsyncIterable
+from typing import List, Dict, Any
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse
+from fastapi import BackgroundTasks
 import logging
 import io
 import httpx
 import json
-import torch
-import numpy as np
-import soundfile as sf
-from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5HifiGan
 from faster_whisper import WhisperModel
 import os
 import subprocess
 import re
+from piper.voice import PiperVoice
+import anyio
+import uuid
 
 app = FastAPI()
 
@@ -32,10 +33,15 @@ app.add_middleware(
 # "tiny.en" is faster but less accurate, "base.en" is slower but more accurate.
 model = WhisperModel("small.en", device="cpu", compute_type="int8")
 
-# Initialize Hugging Face SpeechT5 models globally
-processor = SpeechT5Processor.from_pretrained("microsoft/speecht5_tts")
-model_tts = SpeechT5ForTextToSpeech.from_pretrained("microsoft/speecht5_tts")
-vocoder = SpeechT5HifiGan.from_pretrained("microsoft/speecht5_hifigan")
+# Define Piper model paths
+# IMPORTANT: You need to download the Piper voice model (.onnx) and its config file (.onnx.json)
+# and place them in a 'tts_models' directory within the 'backend' directory.
+# Example: https://github.com/rhasspy/piper/releases/download/2023.11.14-2/en_US-amy-medium.onnx
+# and https://github.com/rhasspy/piper/releases/download/2023.11.14-2/en_US-hfc_female.onnx.json
+PIPER_MODEL_DIR = "tts_models"
+PIPER_MODEL_NAME = "en_US-hfc_female-medium" # Placeholder, replace with the actual model name you download
+PIPER_MODEL_PATH = os.path.join(PIPER_MODEL_DIR, f"{PIPER_MODEL_NAME}.onnx")
+PIPER_CONFIG_PATH = os.path.join(PIPER_MODEL_DIR, f"{PIPER_MODEL_NAME}.onnx.json")
 
 medicines_storage: List[Dict[str, Any]] = []
 in_progress_medicine: Dict[str, Any] = {}
@@ -65,6 +71,20 @@ async def generate_ollama_response(prompt: str) -> str:
             logging.error(f"Error calling Ollama: {e}")
             raise HTTPException(status_code=503, detail="Error communicating with Ollama service")
 
+def remove_emojis(text: str) -> str:
+    """Removes emoji characters from a string."""
+    # Unicode ranges for various emoji blocks
+    emoji_pattern = re.compile(
+        "["
+        "\U0001F600-\U0001F64F"  # emoticons
+        "\U0001F300-\U0001F5FF"  # symbols & pictographs
+        "\U0001F680-\U0001F6FF"  # transport & map symbols
+        "\U0001F1E0-\U0001F1FF"  # flags (iOS)
+        "\U00002702-\U000027B0"
+        "\U000024C2-\U0001F251"
+        "]+", flags=re.UNICODE
+    )
+    return emoji_pattern.sub(r'', text)
 
 @app.get("/")
 def read_root():
@@ -186,32 +206,78 @@ Now process this input:
             os.remove(converted_audio_path)
             logging.info(f"Cleaned up {converted_audio_path}")
 
+async def generate_piper_speech(text: str) -> str:
+    """Generates speech using Piper TTS and saves it to a file, returning the file path."""
+    if not os.path.exists(PIPER_MODEL_PATH) or not os.path.exists(PIPER_CONFIG_PATH):
+        raise FileNotFoundError(
+            f"Piper model files not found. Please download '{PIPER_MODEL_NAME}.onnx' and "
+            f"'{PIPER_MODEL_NAME}.onnx.json' into the '{PIPER_MODEL_DIR}' directory."
+        )
+    
+    # Create a unique filename for the audio output
+    output_filename = f"piper_output_{uuid.uuid4().hex}.mp3"
+    output_directory = "backend/audio_outputs" # Define a specific directory for audio outputs
+    output_filepath = os.path.join(output_directory, output_filename) # Save in the new directory
+
+    def synthesize_and_save():
+        # Ensure the output directory exists
+        os.makedirs(output_directory, exist_ok=True)
+
+        voice = PiperVoice.load(PIPER_MODEL_PATH)
+        
+        # Synthesize to a BytesIO object (in-memory WAV)
+        wav_buffer = io.BytesIO()
+        with wave.open(wav_buffer, "wb") as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2) # 16-bit audio
+            wav_file.setframerate(voice.config.sample_rate)
+            for audio_bytes in voice.synthesize_stream_raw(text):
+                wav_file.writeframes(audio_bytes)
+        wav_buffer.seek(0) # Rewind to the beginning for ffmpeg to read
+
+        # Convert WAV (from BytesIO) to MP3 (to file) using ffmpeg
+        ffmpeg_command = [
+            "ffmpeg",
+            "-i", "pipe:0",  # Read input from stdin
+            "-codec:a", "libmp3lame",
+            "-q:a", "2",     # VBR quality, 2 is good quality
+            output_filepath  # Write output to the specified file
+        ]
+        logging.info(f"Executing FFmpeg command for MP3 conversion to file: {' '.join(ffmpeg_command)}")
+        
+        process = subprocess.Popen(ffmpeg_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = process.communicate(input=wav_buffer.getvalue())
+        
+        if process.returncode != 0:
+            raise RuntimeError(f"FFmpeg conversion failed. Stderr: {stderr.decode()}")
+        
+        logging.info(f"FFmpeg WAV to MP3 conversion successful. Output saved to {output_filepath}")
+        return output_filepath # Return the path to the saved file
+
+    output_filepath_result = await anyio.to_thread.run_sync(synthesize_and_save)
+    logging.info(f"Generated speech with Piper. Saved to {output_filepath_result}")
+    return output_filepath_result
+
 @app.post("/text-to-speech")
-async def text_to_speech(request: Dict[str, str]) -> StreamingResponse:
+async def text_to_speech(request: Dict[str, str], background_tasks: BackgroundTasks) -> FileResponse:
     text = request.get("text")
     if not text:
         raise HTTPException(status_code=400, detail="No text provided for speech generation.")
 
-    inputs = processor(text=text, return_tensors="pt")
-    # Use a default speaker embedding (e.g., a zero tensor or a pre-defined one if available)
-    # For SpeechT5, a common approach for a default voice is to use a zero tensor or a specific pre-trained embedding.
-    # Here, we'll create a dummy one for demonstration. In a real scenario, you'd use a proper default.
-    # A common size for SpeechT5 speaker embeddings is 512.
-    dummy_speaker_embeddings = torch.zeros((1, 512)) # Example: a zero tensor as a placeholder
-    speech = model_tts.generate_speech(inputs["input_ids"], dummy_speaker_embeddings, vocoder=vocoder)
-
-    # Convert the tensor to a numpy array and normalize to 16-bit PCM
-    speech_np = speech.cpu().numpy()
-    speech_np = (speech_np * 32767).astype(np.int16) # Normalize to 16-bit PCM
-
-    buffer = io.BytesIO()
-    sf.write(buffer, speech_np, samplerate=16000, format='WAV')
-    buffer.seek(0)
-
-    async def generate_audio_chunks() -> AsyncIterable[bytes]:
-        yield buffer.read()
-
-    return StreamingResponse(generate_audio_chunks(), media_type="audio/wav")
+    try:
+        cleaned_text = remove_emojis(text) # Sanitize the text
+        audio_filepath = await generate_piper_speech(cleaned_text)
+        
+        # Add a task to delete the file after it's sent
+        background_tasks.add_task(os.remove, audio_filepath)
+        
+        return FileResponse(audio_filepath, media_type="audio/mpeg", filename=os.path.basename(audio_filepath))
+    except FileNotFoundError as e:
+        logging.error(f"Piper model file error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        logging.error(f"Error during Piper TTS generation: {e}")
+        raise HTTPException(status_code=500, detail=f"Speech generation failed: {e}")
 
 @app.get("/medicines")
 def get_medicines():
