@@ -1,13 +1,14 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
 import { View, TouchableOpacity, StyleSheet, Text, Platform } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
-import { useAudioRecorder, AudioModule, RecordingPresets, AudioRecorder } from 'expo-audio';
+import { useAudioRecorder, AudioModule, RecordingPresets } from 'expo-audio';
 import * as FileSystem from 'expo-file-system';
+import { Audio } from 'expo-av';
 
 // Assuming your backend is running locally on the same Wi-Fi
 // For local development, use your machine's local IP address or localhost
 // For web, 'localhost' should work. For physical devices, use your machine's IP.
-const API_URL = 'https://symmetrical-invention-vg4pvpjvrvxcprw9-8000.app.github.dev'; // Adjust if your backend is on a different IP
+const API_URL = 'http://127.0.0.1:8000'; // Adjust if your backend is on a different IP
 
 interface VoiceCommandButtonProps {
   onEmpatheticText: (response: { response_text: string; is_final: boolean; }) => void;
@@ -22,8 +23,22 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
   const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dingSound = useRef<Audio.Sound | null>(null);
 
   useEffect(() => {
+    const loadSound = async () => {
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+           require('../assets/sounds/ding.mp3')
+        );
+        dingSound.current = sound;
+      } catch (error) {
+        console.error("Failed to load the ding sound", error);
+      }
+    };
+
+    loadSound();
+
     (async () => {
       if (Platform.OS !== 'web') {
         const { granted } = await AudioModule.requestRecordingPermissionsAsync();
@@ -32,6 +47,12 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
         }
       }
     })();
+
+    return () => {
+      if (dingSound.current) {
+        dingSound.current.unloadAsync();
+      }
+    };
   }, []);
 
   useImperativeHandle(ref, () => ({
@@ -42,6 +63,11 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
     try {
       setError(null);
       setIsLoading(true);
+
+      if (dingSound.current) {
+        await dingSound.current.setVolumeAsync(0.3); 
+        await dingSound.current.playFromPositionAsync(0);
+      }
 
       if (Platform.OS !== 'web') {
         await AudioModule.setAudioModeAsync({

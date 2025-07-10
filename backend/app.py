@@ -14,13 +14,11 @@ from transformers import SpeechT5Processor, SpeechT5ForTextToSpeech, SpeechT5Hif
 from faster_whisper import WhisperModel
 import os
 import subprocess
-import re # Import the re module
+import re
 
 app = FastAPI()
 
-origins = [
-    "https://symmetrical-invention-vg4pvpjvrvxcprw9-8081.app.github.dev",
-]
+origins = ["*"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -46,7 +44,7 @@ class MedicineLog(BaseModel):
     medicine_name: str
     dosage: str
 
-OLLAMA_API_URL = "https://symmetrical-invention-vg4pvpjvrvxcprw9-11434.app.github.dev/api/generate"
+OLLAMA_API_URL = "http://127.0.0.1:11434/api/generate"
 
 async def generate_ollama_response(prompt: str) -> str:
     async with httpx.AsyncClient() as client:

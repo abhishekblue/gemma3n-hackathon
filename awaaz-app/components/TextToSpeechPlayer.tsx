@@ -11,17 +11,11 @@ interface TextToSpeechPlayerProps {
 
 const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, startRecording }) => {
   const [ttsSound, setTtsSound] = useState<Audio.Sound | null>(null);
-  const dingSound = useRef<Audio.Sound | null>(null);
   const endingSound = useRef<Audio.Sound | null>(null);
 
   useEffect(() => {
     const loadSounds = async () => {
       try {
-        const { sound: ding } = await Audio.Sound.createAsync(
-          require('../assets/sounds/ding.mp3')
-        );
-        dingSound.current = ding;
-
         const { sound: ending } = await Audio.Sound.createAsync(
           require('../assets/sounds/ending.mp3')
         );
@@ -35,9 +29,6 @@ const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, 
     loadSounds();
 
     return () => {
-      if (dingSound.current) {
-        dingSound.current.unloadAsync();
-      }
       if (endingSound.current) {
         endingSound.current.unloadAsync();
       }
@@ -49,7 +40,7 @@ const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, 
       if (!response_data || !response_data.response_text) return;
 
       try {
-        const response = await fetch('https://symmetrical-invention-vg4pvpjvrvxcprw9-8000.app.github.dev/text-to-speech', {
+        const response = await fetch('http://127.0.0.1:8000/text-to-speech', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -83,10 +74,6 @@ const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, 
                   await endingSound.current.playFromPositionAsync(0);
                 }
               } else {
-                if (dingSound.current) {
-                  await dingSound.current.setVolumeAsync(0.3);
-                  await dingSound.current.playFromPositionAsync(0);
-                }
                 startRecording();
               }
             }

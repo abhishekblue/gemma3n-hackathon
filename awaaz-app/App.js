@@ -8,7 +8,7 @@ export default function App() {
   const fetchMedicines = async () => {
     setStatus('Fetching...');
     try {
-      const response = await fetch('http://192.168.1.5:8000/medicines');
+      const response = await fetch('http://127.0.0.1:8000/medicines');
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
