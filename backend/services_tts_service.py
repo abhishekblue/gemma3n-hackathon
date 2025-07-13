@@ -3,11 +3,11 @@ import uuid
 import io
 import subprocess
 import logging
-import wave
+import wave # Re-import wave module
 from piper.voice import PiperVoice
 import anyio
 from config import PIPER_MODEL_DIR, PIPER_MODEL_PATH, PIPER_MODEL_NAME, PIPER_CONFIG_PATH
-from utils_helpers import remove_emojis
+from utils_helpers import sanitize_text_for_tts
 
 async def generate_piper_speech(text: str) -> str:
     if not os.path.exists(PIPER_MODEL_PATH) or not os.path.exists(PIPER_CONFIG_PATH):
@@ -29,8 +29,7 @@ async def generate_piper_speech(text: str) -> str:
             wav_file.setnchannels(1)
             wav_file.setsampwidth(2)
             wav_file.setframerate(voice.config.sample_rate)
-            for audio_bytes in voice.synthesize_stream_raw(remove_emojis(text)):
-                wav_file.writeframes(audio_bytes)
+            voice.synthesize_wav(sanitize_text_for_tts(text), wav_file)
         wav_buffer.seek(0)
 
         ffmpeg_command = [

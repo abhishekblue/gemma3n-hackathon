@@ -1,15 +1,15 @@
-from faster_whisper import WhisperModel
 import subprocess
-import io
 import logging
 import re
 import os
+import json
+import wave
+from vosk import Model, KaldiRecognizer
 from fastapi import UploadFile, HTTPException
 from services_ollama_service import generate_ollama_response
-from config import WHISPER_MODEL, WHISPER_DEVICE, WHISPER_COMPUTE_TYPE
-import json
 
-model = WhisperModel(WHISPER_MODEL, device=WHISPER_DEVICE, compute_type=WHISPER_COMPUTE_TYPE)
+VOSK_MODEL_PATH = "./stt-models/vosk-model-en-us-0.22-lgraph"
+vosk_model = Model(VOSK_MODEL_PATH)
 
 async def process_audio_command(audio_file: UploadFile, in_progress_medicine: dict, medicines_storage: list):
     temp_audio_path = "temp_audio.webm"
@@ -29,13 +29,28 @@ async def process_audio_command(audio_file: UploadFile, in_progress_medicine: di
         subprocess.run(ffmpeg_command, check=True, capture_output=True)
         logging.info("FFmpeg conversion successful.")
 
-        # Transcribe audio
-        with open(converted_audio_path, "rb") as f:
-            audio_bytes = io.BytesIO(f.read())
-        segments, _ = model.transcribe(audio_bytes, beam_size=5)
-        transcribed_text = "".join(segment.text for segment in segments)
+        # Transcribe audio using Vosk
+        wf = wave.open(converted_audio_path, "rb")
+        if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getframerate() != 16000:
+            raise HTTPException(status_code=400, detail="Audio file must be WAV format, mono, 16kHz, 16-bit PCM.")
+        
+        rec = KaldiRecognizer(vosk_model, wf.getframerate())
+        rec.SetWords(True)
+        
+        transcribed_text = ""
+        while True:
+            data = wf.readframes(4000)
+            if len(data) == 0:
+                break
+            if rec.AcceptWaveform(data):
+                result = json.loads(rec.Result())
+                transcribed_text += result.get("text", "") + " "
+        transcribed_text += json.loads(rec.FinalResult()).get("text", "")
+        wf.close()
+
         logging.info(f"Transcribed audio: {transcribed_text}")
         processed_text = transcribed_text.strip().lower()
+        print(f"Processed text: {processed_text}")
 
         # Check for clear/cancel commands
         if re.search(r'\b(clear|cancel)\b', processed_text):

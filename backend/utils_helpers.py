@@ -1,6 +1,13 @@
 import re
 
-def remove_emojis(text: str) -> str:
+def sanitize_text_for_tts(text: str) -> str:
+    # Replace newline characters with a space
+    text = text.replace('\n', ' ')
+
+    # Remove common markdown characters
+    text = re.sub(r'[#*_]', '', text)
+
+    # Remove emojis
     emoji_pattern = re.compile(
         "["
         "\U0001F600-\U0001F64F"
