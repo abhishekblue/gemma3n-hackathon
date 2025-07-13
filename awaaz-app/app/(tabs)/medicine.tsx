@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, Button, FlatList, SafeAreaView } from 'react-native';
 
-export default function App() {
+export default function MedicineScreen() {
   const [medicines, setMedicines] = useState([]);
   const [status, setStatus] = useState('Idle');
 
