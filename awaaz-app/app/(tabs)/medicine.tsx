@@ -59,11 +59,8 @@ export default function MedicineScreen() {
   };
 
   const handleBackendResponse = async (data: BackendResponse) => {
-    if (data.action === 'display_list') {
-      const storedMedicines = await getMedicines();
-      setMedicines(storedMedicines);
-      const formattedSpeech = formatMedicineSpeech(storedMedicines);
-      setSpeechResponse({ response_text: formattedSpeech, is_final: true });
+    if (data.action === 'display_list' || data.action === 'list_medicines') {
+      await loadMedicines();
       setStatus('Displaying medicines from storage.');
     } else if (data.action === 'add_medicine') {
       const { name, strength, frequency } = data.data as { name: string, strength: string, frequency: string };

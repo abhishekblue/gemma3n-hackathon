@@ -58,14 +58,23 @@ async def process_audio_command(audio_file: UploadFile, in_progress_medicine: di
             return {"response_text": "Okay, I've cancelled the current medicine entry.", "is_final": True}
 
         # Extract medicine details
-        extraction_prompt = f"""You are a data extraction tool. From the following text, extract and return only the medicine name, strength, and frequency as a JSON object with the keys "name", "strength", and "frequency". If any of these details are not mentioned in the text, set their value to null. Respond only with the JSON, with no extra explanation or commentary.
+        extraction_prompt = f"""You are a data extraction and intent recognition tool. From the following text, determine the user's intent. The possible intents are "add_medicine" and "list_medicines".
 
-Example:
-Text: add Paracetamol 500mg twice a day
-Your response: {{"name": "Paracetamol", "strength": "500mg", "frequency": "twice a day"}}
-Few points to consider:
-- "If the user says 'one', the frequency is 'once a day'."
-- "If the user says 'three times', the frequency is 'three times a day'."
+If the intent is "add_medicine", extract the medicine name, strength, and frequency.
+If the intent is "list_medicines", you do not need to extract any other details.
+
+Respond with a JSON object containing the "action" and, if applicable, the "data".
+
+Examples:
+Text: "add Paracetamol 500mg twice a day"
+Your response: {{"action": "add_medicine", "data": {{"name": "Paracetamol", "strength": "500mg", "frequency": "twice a day"}}}}
+
+Text: "list my medicines"
+Your response: {{"action": "list_medicines"}}
+
+Text: "what are my medications"
+Your response: {{"action": "list_medicines"}}
+
 Now process this input:
 {transcribed_text}"""
         
@@ -73,9 +82,15 @@ Now process this input:
         
         try:
             extracted_details = json.loads(extraction_response_text)
-            for key, value in extracted_details.items():
-                if value is not None:
-                    in_progress_medicine[key] = value
+
+            if extracted_details.get("action") == "list_medicines":
+                return extracted_details
+
+            if "data" in extracted_details:
+                for key, value in extracted_details["data"].items():
+                    if value is not None:
+                        in_progress_medicine[key] = value
+            
             logging.info(f"In-progress medicine: {in_progress_medicine}")
 
             required_slots = ["name", "strength", "frequency"]
