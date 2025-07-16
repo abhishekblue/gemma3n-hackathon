@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Audio } from 'expo-av';
 
 interface TextToSpeechPlayerProps {
@@ -9,25 +9,9 @@ interface TextToSpeechPlayerProps {
   startRecording: () => void;
 }
 
-export interface TextToSpeechPlayerRef {
-  loadAndPlay: (text: string, isFinal: boolean) => void;
-}
-
-const TextToSpeechPlayer: React.ForwardRefRenderFunction<TextToSpeechPlayerRef, TextToSpeechPlayerProps> = ({ startRecording }, ref) => {
+const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, startRecording }) => {
   const [ttsSound, setTtsSound] = useState<Audio.Sound | null>(null);
   const endingSound = useRef<Audio.Sound | null>(null);
-  const currentResponseData = useRef<{ response_text: string; is_final: boolean } | null>(null);
-
-  useImperativeHandle(ref, () => ({
-    loadAndPlay: async (text: string, isFinal: boolean) => {
-      currentResponseData.current = { response_text: text, is_final: isFinal };
-      if (ttsSound) {
-        await ttsSound.unloadAsync();
-        setTtsSound(null);
-      }
-      await playAudio(text, isFinal);
-    }
-  }));
 
   useEffect(() => {
     const loadSounds = async () => {
@@ -51,65 +35,68 @@ const TextToSpeechPlayer: React.ForwardRefRenderFunction<TextToSpeechPlayerRef, 
     };
   }, []);
 
-  const playAudio = async (text: string, isFinal: boolean) => {
-    if (!text) return;
+  useEffect(() => {
+    const playAudio = async () => {
+      if (!response_data || !response_data.response_text) return;
 
-    try {
-      const response = await fetch('http://127.0.0.1:8000/text-to-speech', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ text: text }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      console.log("Audio stream received, attempting to load and play...");
-      const audioBlob = await response.blob();
-      const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
-      reader.onloadend = async () => {
-        const base64data = reader.result;
-        const newTtsSound = new Audio.Sound();
-        
-        newTtsSound.setOnPlaybackStatusUpdate(async (status) => {
-          console.log("Playback status update:", status);
-          if (status.isLoaded && status.didJustFinish) {
-            await newTtsSound.unloadAsync();
-            setTtsSound(null);
-            
-            if (isFinal) {
-              if (endingSound.current) {
-                await endingSound.current.setVolumeAsync(0.3);
-                await endingSound.current.playFromPositionAsync(0);
-              }
-            } else {
-              startRecording();
-            }
-          }
+      try {
+        const response = await fetch('http://127.0.0.1:8000/text-to-speech', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: response_data.response_text }),
         });
 
-        await newTtsSound.loadAsync({ uri: base64data as string }, { shouldPlay: true });
-        setTtsSound(newTtsSound);
-      };
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        console.log("Audio stream received, attempting to load and play...");
+        const audioBlob = await response.blob();
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          const base64data = reader.result;
+          const newTtsSound = new Audio.Sound();
+          setTtsSound(newTtsSound);
 
-    } catch (error) {
-      console.error('Error playing audio:', error);
-    }
-  };
+          newTtsSound.setOnPlaybackStatusUpdate(async (status) => {
+            console.log("Playback status update:", status);
+            if (status.isLoaded && status.didJustFinish) {
+              if (ttsSound) {
+                await ttsSound.unloadAsync();
+                setTtsSound(null);
+              }
+              
+              if (response_data.is_final) {
+                if (endingSound.current) {
+                  await endingSound.current.setVolumeAsync(0.3);
+                  await endingSound.current.playFromPositionAsync(0);
+                }
+              } else {
+                startRecording();
+              }
+            }
+          });
 
-  useEffect(() => {
-    // Clean up function for ttsSound
+          await newTtsSound.loadAsync({ uri: base64data as string }, { shouldPlay: true });
+        };
+
+      } catch (error) {
+        console.error('Error playing audio:', error);
+      }
+    };
+
+    playAudio();
+
     return () => {
       if (ttsSound) {
         ttsSound.unloadAsync();
       }
     };
-  }, [ttsSound]); // Only run when ttsSound changes
+  }, [response_data, startRecording]);
 
   return null; // This component doesn't render anything visible
 };
 
-export default forwardRef(TextToSpeechPlayer);
+export default TextToSpeechPlayer;

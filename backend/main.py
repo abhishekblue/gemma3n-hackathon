@@ -18,6 +18,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+medicines_storage: list[dict[str, any]] = []
 in_progress_medicine: dict[str, any] = {}
 
 @app.get("/")
@@ -27,7 +28,7 @@ def read_root():
 @app.post("/awaaz-command")
 async def awaaz_command(audio_file: UploadFile = File(...)):
     global in_progress_medicine
-    response = await process_audio_command(audio_file, in_progress_medicine)
+    response = await process_audio_command(audio_file, in_progress_medicine, medicines_storage)
     return response
 
 @app.post("/text-to-speech")
@@ -49,4 +50,4 @@ async def text_to_speech(request: Dict[str, str], background_tasks: BackgroundTa
 
 @app.get("/medicines")
 def get_medicines():
-    return {"medicines": []}
+    return {"medicines": medicines_storage}
