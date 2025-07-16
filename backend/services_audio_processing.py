@@ -11,7 +11,7 @@ from services_ollama_service import generate_ollama_response
 VOSK_MODEL_PATH = "./stt-models/vosk-model-en-us-0.22-lgraph"
 vosk_model = Model(VOSK_MODEL_PATH)
 
-async def process_audio_command(audio_file: UploadFile, in_progress_medicine: dict, medicines_storage: list):
+async def process_audio_command(audio_file: UploadFile, in_progress_medicine: dict):
     temp_audio_path = "temp_audio.webm"
     converted_audio_path = "converted_audio.wav"
 
@@ -82,13 +82,20 @@ Now process this input:
             missing_slots = [slot for slot in required_slots if not in_progress_medicine.get(slot)]
 
             if not missing_slots:
-                medicines_storage.append(in_progress_medicine.copy())
-                logging.info(f"SUCCESS: Stored complete medicine: {in_progress_medicine}")
+                logging.info(f"SUCCESS: Processed complete medicine: {in_progress_medicine}")
                 
                 confirmation_prompt = f"You are Awaaz, a caring health companion. The user has successfully added the medicine '{in_progress_medicine.get('name', 'N/A')}' with strength '{in_progress_medicine.get('strength', 'N/A')}' and frequency '{in_progress_medicine.get('frequency', 'N/A')}'. Generate a warm, reassuring confirmation message of one or two sentences. Do not ask any questions."
                 response_text = await generate_ollama_response(confirmation_prompt)
+                
+                # Prepare the final response with medicine details in 'data'
+                final_response = {
+                    "action": "add_medicine",
+                    "data": in_progress_medicine.copy(), # Include the medicine details here
+                    "response_text": response_text,
+                    "is_final": True
+                }
                 in_progress_medicine.clear()
-                return {"response_text": response_text, "is_final": True}
+                return final_response
             else:
                 missing_slot = missing_slots[0]
                 question_map = {
