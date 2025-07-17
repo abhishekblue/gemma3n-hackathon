@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, Button, FlatList, SafeAreaView, Alert } from 'react-native';
-import { getMedicines, insertMedicine } from '../../database'; // Adjust path as necessary
-import { formatMedicineSpeech } from '../../utils/speechFormatter';
-import TextToSpeechPlayer, { TextToSpeechPlayerRef } from '../../components/TextToSpeechPlayer';
-import AddMedicineCommand from '../../components/AddMedicineCommand';
+import { getMedicines } from '../../database';
+// import { formatMedicineSpeech } from '../../utils/speechFormatter';
+// import TextToSpeechPlayer from '../../components/TextToSpeechPlayer'; // Commented out: Moved to index.tsx
 
 interface Medicine {
   name: string;
@@ -11,16 +10,10 @@ interface Medicine {
   frequency: string;
 }
 
-interface BackendResponse {
-  action: 'display_list' | 'add_medicine' | string;
-  data?: { name: string; strength: string; frequency: string; };
-}
-
 export default function MedicineScreen() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [status, setStatus] = useState('Idle');
-  const [speechResponse, setSpeechResponse] = useState({ response_text: '', is_final: false });
-  const ttsPlayerRef = useRef<TextToSpeechPlayerRef>(null);
+  // const [speechResponse, setSpeechResponse] = useState({ response_text: '', is_final: false }); // Commented out: Moved to index.tsx
 
   useEffect(() => {
     // Initial load of medicines without playing audio automatically
@@ -38,57 +31,31 @@ export default function MedicineScreen() {
     initialLoad();
   }, []);
 
-  const loadMedicines = async () => {
-    console.log("loadMedicines called");
-    try {
-      const storedMedicines = await getMedicines();
-      setMedicines(storedMedicines);
-      const formattedSpeech = formatMedicineSpeech(storedMedicines);
-      setSpeechResponse({ response_text: formattedSpeech, is_final: true });
-      setStatus('Medicines loaded from storage.');
-      if (ttsPlayerRef.current) {
-        console.log("Calling ttsPlayerRef.current.loadAndPlay()");
-        ttsPlayerRef.current.loadAndPlay(formattedSpeech, true);
-      } else {
-        console.log("ttsPlayerRef.current is null");
-      }
-    } catch (error) {
-      console.error("Failed to load medicines from storage:", error);
-      setStatus('Failed to load medicines from storage.');
-    }
-  };
+  // const loadMedicines = async () => { // Commented out: Moved to index.tsx
+  //   console.log("loadMedicines called");
+  //   try {
+  //     const storedMedicines = await getMedicines();
+  //     setMedicines(storedMedicines);
+  //     const formattedSpeech = formatMedicineSpeech(storedMedicines);
+  //     setSpeechResponse({ response_text: formattedSpeech, is_final: true });
+  //     setStatus('Medicines loaded from storage.');
+  //   } catch (error) {
+  //     console.error("Failed to load medicines from storage:", error);
+  //     setStatus('Failed to load medicines from storage.');
+  //   }
+  // };
 
-  const handleBackendResponse = async (data: BackendResponse) => {
-    if (data.action === 'display_list' || data.action === 'list_medicines') {
-      await loadMedicines();
-      setStatus('Displaying medicines from storage.');
-    } else if (data.action === 'add_medicine') {
-      const { name, strength, frequency } = data.data as { name: string, strength: string, frequency: string };
-      await insertMedicine(name, strength, frequency);
-      await loadMedicines(); // Reload medicines after adding
-      setStatus(`Added ${name} to storage.`);
-      Alert.alert("Medicine Added", `${name} has been added to your schedule.`);
-    } else {
-      setStatus('Unknown action from backend.');
-    }
-  };
-
-  const startRecording = () => {
-    // Placeholder for starting recording, if needed by TextToSpeechPlayer
-    console.log("Start recording called from MedicineScreen (placeholder)");
-  };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.buttonContainer}>
-        <Button
-            title="Load Medicines from Storage"
+        {/* <Button // Commented out: Moved to index.tsx
+            title="Load Medicines"
             onPress={loadMedicines}
             color="#4CAF50"
-          />
-        <AddMedicineCommand onResponseReceived={handleBackendResponse} />
+          /> */}
       </View>
-      <TextToSpeechPlayer ref={ttsPlayerRef} response_data={speechResponse} startRecording={startRecording} />
+      {/* <TextToSpeechPlayer response_data={speechResponse} /> // Commented out: Moved to index.tsx */}
       <Text style={styles.status}>Status: {status}</Text>
       <FlatList
         data={medicines}
@@ -114,17 +81,20 @@ const styles = StyleSheet.create({
     marginVertical: 20,
   },
   status: {
+    color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 10,
   },
   listHeader: {
+    color: '#fff'!,
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 5,
   },
   medicineItem: {
+    color: '#fff'!,
     padding: 10,
     fontSize: 16,
     borderBottomWidth: 1,
