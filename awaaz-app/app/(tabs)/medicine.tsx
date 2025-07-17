@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, Button, FlatList, SafeAreaView, Alert } from 'react-native';
-import { getMedicines } from '../../database'; // Adjust path as necessary
-import { formatMedicineSpeech } from '../../utils/speechFormatter';
-import TextToSpeechPlayer from '../../components/TextToSpeechPlayer';
+import { getMedicines } from '../../database';
+// import { formatMedicineSpeech } from '../../utils/speechFormatter';
+// import TextToSpeechPlayer from '../../components/TextToSpeechPlayer'; // Commented out: Moved to index.tsx
 
 interface Medicine {
   name: string;
@@ -13,7 +13,7 @@ interface Medicine {
 export default function MedicineScreen() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [status, setStatus] = useState('Idle');
-  const [speechResponse, setSpeechResponse] = useState({ response_text: '', is_final: false });
+  // const [speechResponse, setSpeechResponse] = useState({ response_text: '', is_final: false }); // Commented out: Moved to index.tsx
 
   useEffect(() => {
     // Initial load of medicines without playing audio automatically
@@ -31,31 +31,31 @@ export default function MedicineScreen() {
     initialLoad();
   }, []);
 
-  const loadMedicines = async () => {
-    console.log("loadMedicines called");
-    try {
-      const storedMedicines = await getMedicines();
-      setMedicines(storedMedicines);
-      const formattedSpeech = formatMedicineSpeech(storedMedicines);
-      setSpeechResponse({ response_text: formattedSpeech, is_final: true });
-      setStatus('Medicines loaded from storage.');
-    } catch (error) {
-      console.error("Failed to load medicines from storage:", error);
-      setStatus('Failed to load medicines from storage.');
-    }
-  };
+  // const loadMedicines = async () => { // Commented out: Moved to index.tsx
+  //   console.log("loadMedicines called");
+  //   try {
+  //     const storedMedicines = await getMedicines();
+  //     setMedicines(storedMedicines);
+  //     const formattedSpeech = formatMedicineSpeech(storedMedicines);
+  //     setSpeechResponse({ response_text: formattedSpeech, is_final: true });
+  //     setStatus('Medicines loaded from storage.');
+  //   } catch (error) {
+  //     console.error("Failed to load medicines from storage:", error);
+  //     setStatus('Failed to load medicines from storage.');
+  //   }
+  // };
 
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.buttonContainer}>
-        <Button
+        {/* <Button // Commented out: Moved to index.tsx
             title="Load Medicines"
             onPress={loadMedicines}
             color="#4CAF50"
-          />
+          /> */}
       </View>
-      <TextToSpeechPlayer response_data={speechResponse} />
+      {/* <TextToSpeechPlayer response_data={speechResponse} /> // Commented out: Moved to index.tsx */}
       <Text style={styles.status}>Status: {status}</Text>
       <FlatList
         data={medicines}

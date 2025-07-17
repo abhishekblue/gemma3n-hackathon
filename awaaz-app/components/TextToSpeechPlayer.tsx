@@ -14,9 +14,10 @@ interface TextToSpeechPlayerProps {
     };
   };
   startRecording?: () => void; // Make startRecording optional
+  onSpeechFinish?: () => void; // New prop: Callback when speech finishes
 }
 
-const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, startRecording }) => {
+const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, startRecording, onSpeechFinish }) => {
   const [ttsSound, setTtsSound] = useState<Audio.Sound | null>(null);
   const endingSound = useRef<Audio.Sound | null>(null);
 
@@ -76,10 +77,7 @@ const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, 
               }
               
               if (response_data.is_final) {
-                if (endingSound.current) {
-                  await endingSound.current.setVolumeAsync(0.3);
-                  await endingSound.current.playFromPositionAsync(0);
-                }
+                // Perform action first if it's an add_medicine action
                 if (response_data.action === "add_medicine" && response_data.data) {
                   await insertMedicine(
                     response_data.data.name,
@@ -87,6 +85,23 @@ const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, 
                     response_data.data.frequency
                   );
                   console.log("Medicine saved to database:", response_data.data);
+                }
+
+                // Then handle ending sound playback
+                if (endingSound.current) {
+                  await endingSound.current.setVolumeAsync(0.3);
+                  await endingSound.current.playFromPositionAsync(0);
+
+                  const endingSoundListener = (endingStatus: any) => {
+                    if (endingStatus.isLoaded && endingStatus.didJustFinish) {
+                      onSpeechFinish && onSpeechFinish();
+                      endingSound.current?.setOnPlaybackStatusUpdate(null); // Clean up listener
+                    }
+                  };
+                  endingSound.current.setOnPlaybackStatusUpdate(endingSoundListener);
+                } else {
+                  // If endingSound is not available, call onSpeechFinish immediately
+                  onSpeechFinish && onSpeechFinish();
                 }
               } else {
                 startRecording && startRecording();
