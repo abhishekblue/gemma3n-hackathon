@@ -13,7 +13,7 @@ interface TextToSpeechPlayerProps {
       frequency: string;
     };
   };
-  startRecording: () => void;
+  startRecording?: () => void; // Make startRecording optional
 }
 
 const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, startRecording }) => {
@@ -89,7 +89,7 @@ const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, 
                   console.log("Medicine saved to database:", response_data.data);
                 }
               } else {
-                startRecording();
+                startRecording && startRecording();
               }
             }
           });
@@ -109,7 +109,7 @@ const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, 
         ttsSound.unloadAsync();
       }
     };
-  }, [response_data, startRecording]);
+  }, [response_data]);
 
   return null; // This component doesn't render anything visible
 };
