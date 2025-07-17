@@ -52,7 +52,21 @@ async def process_audio_command(audio_file: UploadFile, in_progress_medicine: di
         processed_text = transcribed_text.strip().lower()
         print(f"Processed text: {processed_text}")
 
-        # Check for clear/cancel commands
+        # Intent classification using Ollama
+        intent_prompt = f"""Analyze the following user command and determine the primary intent.
+If the user wants to see, list, or inquire about their existing medicines, respond with "list_medicines".
+Otherwise, respond with "add_medicine".
+Respond only with the intent keyword, no other text or punctuation.
+
+User command: {transcribed_text}"""
+        
+        intent_response = await generate_ollama_response(intent_prompt)
+        
+        if intent_response.strip().lower() == "list_medicines":
+            in_progress_medicine.clear()
+            return {"action": "list_medicines"}
+
+        # Check for clear/cancel commands (moved after list_medicines intent)
         if re.search(r'\b(clear|cancel)\b', processed_text):
             in_progress_medicine.clear()
             return {"response_text": "Okay, I've cancelled the current medicine entry.", "is_final": True}

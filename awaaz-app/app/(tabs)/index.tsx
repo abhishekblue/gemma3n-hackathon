@@ -33,9 +33,12 @@ export default function App() {
 
 
   const handleLlmResponse = (response: LlmResponseData) => {
-    // setLlmResponse(response); // Commented out: Replaced by activeSpeech
-    // Pass the entire response object, including is_final, action, and data
-    setActiveSpeech(response); 
+    if (response.action === 'list_medicines') {
+      loadMedicines();
+    } else {
+      // Pass the entire response object, including is_final, action, and data
+      setActiveSpeech(response); 
+    }
   };
 
   const startRecording = () => {
