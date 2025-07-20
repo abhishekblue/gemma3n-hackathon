@@ -10,7 +10,7 @@ interface TextToSpeechPlayerProps {
     data?: { // Add data to response_data
       name: string;
       strength: string;
-      frequency: string;
+      times: string[]; // Changed from frequency to times
     };
   };
   startRecording?: () => void; // Make startRecording optional
@@ -82,7 +82,7 @@ const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, 
                   await insertMedicine(
                     response_data.data.name,
                     response_data.data.strength,
-                    response_data.data.frequency
+                    response_data.data.times // Changed from frequency to times
                   );
                   console.log("Medicine saved to database:", response_data.data);
                 }

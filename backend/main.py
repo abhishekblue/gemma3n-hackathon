@@ -1,13 +1,28 @@
 import os
+from contextlib import asynccontextmanager # Import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from typing import Dict
 from services_audio_processing import process_audio_command
 from services_tts_service import generate_piper_speech
+from services_ollama_service import generate_ollama_response # Import Ollama service
 import logging
 
-app = FastAPI()
+# Define the lifespan context manager
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Cold start vroom...")  
+    print("--------------------------------")
+    try:
+        # Send a dummy request to warm up the Ollama model
+        await generate_ollama_response("hello") 
+        logging.info("Ollama service warmed up successfully.")
+    except Exception as e:
+        logging.error(f"Failed to warm up Ollama service: {e}")
+    yield # Application startup
+
+app = FastAPI(lifespan=lifespan) # Pass lifespan to FastAPI
 
 origins = ["*"]
 app.add_middleware(

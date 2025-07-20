@@ -7,8 +7,8 @@ import TextToSpeechPlayer from '../../components/TextToSpeechPlayer';
 
 interface Medicine {
   name: string;
-  dosage: string;
-  frequency: string;
+  strength: string; // Changed from dosage to strength
+  times: string[]; // Changed from frequency to times
 }
 
 // Extend the response interface to include action and data
@@ -19,7 +19,7 @@ interface LlmResponseData {
   data?: {
     name: string;
     strength: string;
-    frequency: string;
+    times: string[]; // Changed from frequency to times
   };
 }
 
