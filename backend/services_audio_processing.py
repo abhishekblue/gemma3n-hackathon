@@ -7,6 +7,7 @@ import wave
 from vosk import Model, KaldiRecognizer
 from fastapi import UploadFile, HTTPException
 from services_ollama_service import generate_ollama_response
+import dateparser
 
 VOSK_MODEL_PATH = "./stt-models/vosk-model-en-us-0.22-lgraph"
 vosk_model = Model(VOSK_MODEL_PATH)
@@ -113,7 +114,11 @@ Now process this input:
                 # Prepare the final response with medicine details in 'data'
                 final_response = {
                     "action": "add_medicine",
-                    "data": in_progress_medicine.copy(), # Include the medicine details here
+                    "data": {
+                        "name": in_progress_medicine.get("name"),
+                        "strength": in_progress_medicine.get("strength"),
+                        "times": in_progress_medicine.get("times", [])
+                    },
                     "response_text": response_text,
                     "is_final": True
                 }

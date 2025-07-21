@@ -4,6 +4,7 @@ import { getMedicines } from '../../database';
 import { formatMedicineSpeech } from '../../utils/speechFormatter';
 import VoiceCommandButton from '../../components/VoiceCommandButton';
 import TextToSpeechPlayer from '../../components/TextToSpeechPlayer';
+import TestNotificationButton from '../../components/TestNotificationButton';
 
 interface Medicine {
   name: string;
@@ -72,6 +73,7 @@ export default function App() {
           onPress={loadMedicines}
           color="#9955ff"
         />
+      <TestNotificationButton />
     </SafeAreaView>
   );
 }

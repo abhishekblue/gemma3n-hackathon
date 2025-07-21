@@ -1,3 +1,5 @@
+
+
 const intro_templates = [
   "Okay, here are your current medications: {medicine_list}.",
   "Here is the list of medicines you're taking: {medicine_list}.",
