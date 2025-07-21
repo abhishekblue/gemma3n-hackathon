@@ -8,7 +8,9 @@ import { Audio } from 'expo-av';
 // Assuming your backend is running locally on the same Wi-Fi
 // For local development, use your machine's local IP address or localhost
 // For web, 'localhost' should work. For physical devices, use your machine's IP.
+// const API_URL = 'http://10.137.215.219:8000'; // Adjust if your backend is on a different IP
 const API_URL = 'http://127.0.0.1:8000'; // Adjust if your backend is on a different IP
+
 
 interface VoiceCommandButtonProps {
   onEmpatheticText: (response: { response_text: string; is_final: boolean; }) => void;

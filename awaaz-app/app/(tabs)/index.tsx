@@ -4,11 +4,12 @@ import { getMedicines } from '../../database';
 import { formatMedicineSpeech } from '../../utils/speechFormatter';
 import VoiceCommandButton from '../../components/VoiceCommandButton';
 import TextToSpeechPlayer from '../../components/TextToSpeechPlayer';
+import TestNotificationButton from '../../components/TestNotificationButton';
 
 interface Medicine {
   name: string;
-  dosage: string;
-  frequency: string;
+  strength: string; // Changed from dosage to strength
+  times: string[]; // Changed from frequency to times
 }
 
 // Extend the response interface to include action and data
@@ -19,7 +20,7 @@ interface LlmResponseData {
   data?: {
     name: string;
     strength: string;
-    frequency: string;
+    times: string[]; // Changed from frequency to times
   };
 }
 
@@ -72,6 +73,7 @@ export default function App() {
           onPress={loadMedicines}
           color="#9955ff"
         />
+      <TestNotificationButton />
     </SafeAreaView>
   );
 }

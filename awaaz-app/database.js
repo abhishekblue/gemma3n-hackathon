@@ -10,10 +10,10 @@ export const getMedicines = async () => {
   }
 };
 
-export const insertMedicine = async (name, dosage, frequency) => {
+export const insertMedicine = async (name, strength, times) => {
   try {
     const currentMedicines = await getMedicines();
-    const newMedicine = { name, dosage, frequency };
+    const newMedicine = { name, strength, times };
     const updatedMedicines = [...currentMedicines, newMedicine];
     await AsyncStorage.setItem('medicines', JSON.stringify(updatedMedicines));
   } catch (error) {

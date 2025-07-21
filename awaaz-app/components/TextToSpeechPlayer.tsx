@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Audio } from 'expo-av';
 import { insertMedicine } from '../database';
+import { scheduleRemindersForMedicine } from '../utils/NotificationManager';
 
 interface TextToSpeechPlayerProps {
   response_data: {
@@ -10,7 +11,7 @@ interface TextToSpeechPlayerProps {
     data?: { // Add data to response_data
       name: string;
       strength: string;
-      frequency: string;
+      times: string[];
     };
   };
   startRecording?: () => void; // Make startRecording optional
@@ -49,6 +50,7 @@ const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, 
 
       try {
         const response = await fetch('http://127.0.0.1:8000/text-to-speech', {
+        // const response = await fetch('http://10.137.215.219:8000/text-to-speech', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -82,9 +84,17 @@ const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, 
                   await insertMedicine(
                     response_data.data.name,
                     response_data.data.strength,
-                    response_data.data.frequency
+                    response_data.data.times // Changed from frequency to times
                   );
                   console.log("Medicine saved to database:", response_data.data);
+                  // Schedule reminders for the newly added medicine
+                  if (response_data.data) {
+                    await scheduleRemindersForMedicine({
+                      name: response_data.data.name,
+                      dosage: response_data.data.strength,
+                      times: response_data.data.times,
+                    });
+                  }
                 }
 
                 // Then handle ending sound playback

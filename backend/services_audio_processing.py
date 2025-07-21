@@ -7,6 +7,7 @@ import wave
 from vosk import Model, KaldiRecognizer
 from fastapi import UploadFile, HTTPException
 from services_ollama_service import generate_ollama_response
+import dateparser
 
 VOSK_MODEL_PATH = "./stt-models/vosk-model-en-us-0.22-lgraph"
 vosk_model = Model(VOSK_MODEL_PATH)
@@ -72,39 +73,52 @@ User command: {transcribed_text}"""
             return {"response_text": "Okay, I've cancelled the current medicine entry.", "is_final": True}
 
         # Extract medicine details
-        extraction_prompt = f"""You are a data extraction tool. From the following text, extract and return only the medicine name, strength, and frequency as a JSON object with the keys "name", "strength", and "frequency". If any of these details are not mentioned in the text, set their value to null. Respond only with the JSON, with no extra explanation or commentary.
+        extraction_prompt = f"""You are a data extraction tool. From the following text, extract and return ONLY the medicine name, strength, and an array of specific times mentioned by the user. If any of these details are not mentioned in the text, set their value to null.
+        These extracted times should be converted to a standardized 24-hour "HH:MM" string format.
+        DO NOT include any other text, explanation, or commentary. Respond ONLY with the JSON object.
 
 Example:
-Text: add Paracetamol 500mg twice a day
-Your response: {{"name": "Paracetamol", "strength": "500mg", "frequency": "twice a day"}}
-Few points to consider:
-- "If the user says 'one', the frequency is 'once a day'."
-- "If the user says 'three times', the frequency is 'three times a day'."
+Text: Please remind me to take Paracetamol 500mg at 8 AM and 10 at night
+Your response: {{"name": "Paracetamol", "strength": "500mg", "times": ["08:00", "22:00"]}}
+
+Text: amoxicillin
+Your response: {{"name": "amoxicillin", "strength": null, "times": []}}
 Now process this input:
 {transcribed_text}"""
         
         extraction_response_text = await generate_ollama_response(extraction_prompt)
         
         try:
-            extracted_details = json.loads(extraction_response_text)
+            # Strip whitespace and parse JSON
+            extracted_details = json.loads(extraction_response_text.strip())
+            
+            # Ensure the parsed result is a dictionary
+            if not isinstance(extracted_details, dict):
+                raise ValueError("Ollama response is not a valid JSON object.")
+
             for key, value in extracted_details.items():
                 if value is not None:
                     in_progress_medicine[key] = value
             logging.info(f"In-progress medicine: {in_progress_medicine}")
 
-            required_slots = ["name", "strength", "frequency"]
+            required_slots = ["name", "strength", "times"]
             missing_slots = [slot for slot in required_slots if not in_progress_medicine.get(slot)]
 
             if not missing_slots:
                 logging.info(f"SUCCESS: Processed complete medicine: {in_progress_medicine}")
+                print(f"Final extracted medicine object: {in_progress_medicine}") # Added for user feedback
                 
-                confirmation_prompt = f"You are Awaaz, a caring health companion. The user has successfully added the medicine '{in_progress_medicine.get('name', 'N/A')}' with strength '{in_progress_medicine.get('strength', 'N/A')}' and frequency '{in_progress_medicine.get('frequency', 'N/A')}'. Generate a warm, reassuring confirmation message of one or two sentences. Do not ask any questions."
+                confirmation_prompt = f"You are Awaaz, a caring health companion. The user has successfully added the medicine '{in_progress_medicine.get('name', 'N/A')}' with strength '{in_progress_medicine.get('strength', 'N/A')}' and times '{', '.join(in_progress_medicine.get('times', []))}'. Generate a warm, reassuring confirmation message of one or two sentences. Do not ask any questions."
                 response_text = await generate_ollama_response(confirmation_prompt)
                 
                 # Prepare the final response with medicine details in 'data'
                 final_response = {
                     "action": "add_medicine",
-                    "data": in_progress_medicine.copy(), # Include the medicine details here
+                    "data": {
+                        "name": in_progress_medicine.get("name"),
+                        "strength": in_progress_medicine.get("strength"),
+                        "times": in_progress_medicine.get("times", [])
+                    },
                     "response_text": response_text,
                     "is_final": True
                 }
@@ -115,7 +129,7 @@ Now process this input:
                 question_map = {
                     "name": "Ask the user for the name of the medicine.",
                     "strength": "Ask the user for the strength of the medicine (e.g., 500mg).",
-                    "frequency": "Ask the user how many times a day they need to take this medicine."
+                    "times": "Ask the user for the specific times they need to take this medicine. (e.g., 8 AM, 10 PM)."
                 }
                 
                 follow_up_prompt = f"You are Awaaz, a caring health companion. The user is adding a medicine but some details are missing. {question_map.get(missing_slot, 'Ask for the missing information.')} Keep the question concise and friendly and ask question(s) like you are already in the middle of the conversation and not like you are starting the conversation."
@@ -124,8 +138,24 @@ Now process this input:
 
         except json.JSONDecodeError as e:
             logging.error(f"Error parsing JSON from Ollama extraction: {e}")
-            prompt = f"You are Awaaz, a caring health companion. The user said: '{transcribed_text}'. You couldn't understand the details. Ask the user to please repeat the medicine information. And ask question(s) like you are already in the middle of the conversation and not like you are starting the conversation."
-            response_text = await generate_ollama_response(prompt)
+            
+            # Re-evaluate missing slots to provide context-aware follow-up
+            required_slots = ["name", "strength", "times"]
+            missing_slots = [slot for slot in required_slots if not in_progress_medicine.get(slot)]
+
+            if missing_slots:
+                missing_slot = missing_slots[0]
+                question_map = {
+                    "name": "Ask the user for the name of the medicine.",
+                    "strength": "Ask the user for the strength of the medicine (e.g., 500mg).",
+                    "times": "Ask the user for the specific times they need to take this medicine. (e.g., 8 AM, 10 PM)."
+                }
+                follow_up_prompt = f"You are Awaaz, a caring health companion. The user is adding a medicine but some details are missing. {question_map.get(missing_slot, 'Ask for the missing information.')} Keep the question concise and friendly and ask question(s) like you are already in the middle of the conversation and not like you are starting the conversation."
+            else:
+                # Fallback if no specific missing slot can be identified (e.g., malformed JSON but all slots are technically present)
+                follow_up_prompt = f"You are Awaaz, a caring health companion. The user said: '{transcribed_text}'. I couldn't understand the details. Could you please repeat the medicine information? Keep the question concise and friendly and ask question(s) like you are already in the middle of the conversation and not like you are starting the conversation."
+            
+            response_text = await generate_ollama_response(follow_up_prompt)
             return {"response_text": response_text, "is_final": False}
 
     except subprocess.CalledProcessError as e:

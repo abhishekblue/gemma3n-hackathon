@@ -6,8 +6,8 @@ import { getMedicines } from '../../database';
 
 interface Medicine {
   name: string;
-  dosage: string;
-  frequency: string;
+  strength: string;
+  times: string[];
 }
 
 export default function MedicineScreen() {
@@ -62,7 +62,7 @@ export default function MedicineScreen() {
         keyExtractor={(item, index) => index.toString()}
         renderItem={({ item }) => (
           <Text style={styles.medicineItem}>
-            Name: {item.name}, Dosage: {item.dosage}, Frequency: {item.frequency}
+            Name: {item.name}, Dosage: {item.strength}, Times: {item.times.join(", ")}
           </Text>
         )}
         ListHeaderComponent={medicines.length > 0 ? <Text style={styles.listHeader}>Available Medicines:</Text> : null}
