@@ -5,6 +5,7 @@ import { formatMedicineSpeech } from '../../utils/speechFormatter';
 import VoiceCommandButton from '../../components/VoiceCommandButton';
 import TextToSpeechPlayer from '../../components/TextToSpeechPlayer';
 import TestNotificationButton from '../../components/TestNotificationButton';
+import * as Notifications from 'expo-notifications';
 
 interface Medicine {
   name: string;
@@ -23,6 +24,15 @@ interface LlmResponseData {
     times: string[]; // Changed from frequency to times
   };
 }
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 export default function App() {
   // const [llmResponse, setLlmResponse] = useState<{ response_text: string; is_final: boolean } | null>(null); // Commented out: Replaced by activeSpeech

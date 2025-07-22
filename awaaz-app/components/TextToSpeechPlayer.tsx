@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Audio } from 'expo-av';
 import { insertMedicine } from '../database';
 import { scheduleRemindersForMedicine } from '../utils/NotificationManager';
+import * as Notifications from 'expo-notifications';
 
 interface TextToSpeechPlayerProps {
   response_data: {
@@ -49,8 +50,8 @@ const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, 
       if (!response_data || !response_data.response_text) return;
 
       try {
-        const response = await fetch('http://127.0.0.1:8000/text-to-speech', {
-        // const response = await fetch('http://10.137.215.219:8000/text-to-speech', {
+        // const response = await fetch('http://127.0.0.1:8000/text-to-speech', {
+        const response = await fetch('http://10.101.235.252:8000/text-to-speech', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -87,13 +88,19 @@ const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, 
                     response_data.data.times // Changed from frequency to times
                   );
                   console.log("Medicine saved to database:", response_data.data);
+                  const permissionStatus = await Notifications.getPermissionsAsync();
+                  console.log("Permission status:", permissionStatus);
+
                   // Schedule reminders for the newly added medicine
                   if (response_data.data) {
+                    console.log("Attempting to schedule reminders with data:", response_data.data);
                     await scheduleRemindersForMedicine({
                       name: response_data.data.name,
                       dosage: response_data.data.strength,
                       times: response_data.data.times,
                     });
+                  } else {
+                    console.log("No data available to schedule reminders.");
                   }
                 }
 

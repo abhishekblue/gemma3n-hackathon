@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, Button, FlatList, SafeAreaView, Alert } from 'react-native';
 import { getMedicines } from '../../database';
-// import { formatMedicineSpeech } from '../../utils/speechFormatter';
-// import TextToSpeechPlayer from '../../components/TextToSpeechPlayer'; // Commented out: Moved to index.tsx
+
 
 interface Medicine {
   name: string;
@@ -13,7 +12,6 @@ interface Medicine {
 export default function MedicineScreen() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [status, setStatus] = useState('Idle');
-  // const [speechResponse, setSpeechResponse] = useState({ response_text: '', is_final: false }); // Commented out: Moved to index.tsx
 
   useEffect(() => {
     // Initial load of medicines without playing audio automatically
@@ -29,40 +27,18 @@ export default function MedicineScreen() {
       }
     };
     initialLoad();
-  }, []);
-
-  // const loadMedicines = async () => { // Commented out: Moved to index.tsx
-  //   console.log("loadMedicines called");
-  //   try {
-  //     const storedMedicines = await getMedicines();
-  //     setMedicines(storedMedicines);
-  //     const formattedSpeech = formatMedicineSpeech(storedMedicines);
-  //     setSpeechResponse({ response_text: formattedSpeech, is_final: true });
-  //     setStatus('Medicines loaded from storage.');
-  //   } catch (error) {
-  //     console.error("Failed to load medicines from storage:", error);
-  //     setStatus('Failed to load medicines from storage.');
-  //   }
-  // };
+  }, [medicines]);
 
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.buttonContainer}>
-        {/* <Button // Commented out: Moved to index.tsx
-            title="Load Medicines"
-            onPress={loadMedicines}
-            color="#4CAF50"
-          /> */}
-      </View>
-      {/* <TextToSpeechPlayer response_data={speechResponse} /> // Commented out: Moved to index.tsx */}
       <Text style={styles.status}>Status: {status}</Text>
       <FlatList
         data={medicines}
         keyExtractor={(item, index) => index.toString()}
         renderItem={({ item }) => (
           <Text style={styles.medicineItem}>
-            Name: {item.name}, Dosage: {item.strength}, Times: {item.times.join(", ")}
+            Name: {item.name}, Dosage: {item.strength}, Times: {(item.times || []).join(", ")}
           </Text>
         )}
         ListHeaderComponent={medicines.length > 0 ? <Text style={styles.listHeader}>Available Medicines:</Text> : null}

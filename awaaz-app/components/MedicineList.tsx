@@ -25,7 +25,7 @@ const MedicineList: React.FC<MedicineListProps> = ({ medicines }) => {
     <View style={styles.medicineItem}>
       <Text style={styles.medicineName}>{item.name}</Text>
       <Text style={styles.medicineDetail}>Dosage: {item.dosage}</Text>
-      <Text style={styles.medicineDetail}>Times: {item.times ? item.times.join(', ') : 'N/A'}</Text>
+      <Text style={styles.medicineDetail}>Times: {item.times}</Text>
     </View>
   );
 

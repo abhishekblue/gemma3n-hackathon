@@ -3,38 +3,60 @@ import * as Notifications from 'expo-notifications';
 interface Medicine {
   name: string;
   dosage: string;
-  times: string[];
+  times: string[]; // Example: ["18:30", "21:00"]
 }
-
 export async function scheduleRemindersForMedicine(medicine: Medicine) {
-  const notificationBody = `Time for your ${medicine.name}, ${medicine.dosage}.`;
+  // ✅ Check and request notification permissions
+  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  let finalStatus = existingStatus;
+  if (existingStatus !== 'granted') {
+    const { status } = await Notifications.requestPermissionsAsync();
+    finalStatus = status;
+  }
+  if (finalStatus !== 'granted') {
+    console.error('Notification permissions not granted!');
+    return;
+  }
 
   for (const timeString of medicine.times) {
     const [hourStr, minuteStr] = timeString.split(':');
     const hour = parseInt(hourStr, 10);
     const minute = parseInt(minuteStr, 10);
 
-    if (isNaN(hour) || isNaN(minute)) {
-      console.warn(`Invalid time format for ${medicine.name}: ${timeString}. Skipping.`);
-      continue;
+    const now = new Date();
+    const targetTime = new Date();
+    targetTime.setHours(hour, minute, 0, 0);
+
+    if (targetTime > now) {
+      const secondsUntilTarget = Math.floor((targetTime.getTime() - now.getTime()) / 1000);
+
+      await Notifications.scheduleNotificationAsync({
+        identifier: `${medicine.name}-today-${timeString}`,
+        content: {
+          title: 'Medicine Reminder',
+          body: `Time for your ${medicine.name}, ${medicine.dosage}.`,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: secondsUntilTarget,
+          repeats: false,
+        },
+      });
+      console.log(`Scheduled TODAY'S reminder for ${medicine.name}`);
     }
 
-    // Generate a unique identifier for each notification
-    const identifier = `${medicine.name}-${timeString}-${medicine.dosage}`;
-
     await Notifications.scheduleNotificationAsync({
-      identifier: identifier,
+      identifier: `${medicine.name}-daily-${timeString}`,
       content: {
         title: 'Medicine Reminder',
-        body: notificationBody,
+        body: `Time for your ${medicine.name}, ${medicine.dosage}.`,
       },
       trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-        hour: hour,
-        minute: minute,
-        repeats: true,
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour,
+        minute,
       },
     });
-    console.log(`Scheduled reminder for ${medicine.name} at ${timeString}`);
+    console.log(`Scheduled DAILY reminder for ${medicine.name} at ${timeString}`);
   }
 }
