@@ -11,9 +11,8 @@ import { Audio } from 'expo-av';
 // const API_URL = 'http://10.101.235.252:8000'; // Adjust if your backend is on a different IP
 const API_URL = 'http://127.0.0.1:8000'; // Adjust if your backend is on a different IP
 
-
 interface VoiceCommandButtonProps {
-  onEmpatheticText: (response: { response_text: string; is_final: boolean; }) => void;
+  onEmpatheticText: (response: { response_text: string; is_final: boolean }) => void;
 }
 
 export interface VoiceCommandButtonRef {
@@ -25,22 +24,30 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
   const [isRecording, setIsRecording] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
   const dingSound = useRef<Audio.Sound | null>(null);
+  const processingSound = useRef<Audio.Sound | null>(null);
   const recordingStartTime = useRef<number | null>(null);
 
+  // Load sounds and request permissions
   useEffect(() => {
-    const loadSound = async () => {
+    const loadSounds = async () => {
       try {
-        const { sound } = await Audio.Sound.createAsync(
-           require('../assets/sounds/ding.mp3')
+        const { sound: ding } = await Audio.Sound.createAsync(
+          require('../assets/sounds/ding.mp3')
         );
-        dingSound.current = sound;
+        dingSound.current = ding;
+
+        const { sound: processing } = await Audio.Sound.createAsync(
+          require('../assets/sounds/processing.mp3')
+        );
+        processingSound.current = processing;
       } catch (error) {
-        console.error("Failed to load the ding sound", error);
+        console.error('Failed to load sounds:', error);
       }
     };
 
-    loadSound();
+    loadSounds();
 
     (async () => {
       if (Platform.OS !== 'web') {
@@ -55,8 +62,36 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
       if (dingSound.current) {
         dingSound.current.unloadAsync();
       }
+      if (processingSound.current) {
+        processingSound.current.unloadAsync();
+      }
     };
   }, []);
+
+  // Play or stop processing sound based on isLoading
+  useEffect(() => {
+    const manageProcessingSound = async () => {
+      if (isLoading) {
+        try {
+          if (processingSound.current) {
+            await processingSound.current.setIsLoopingAsync(true);
+            await processingSound.current.setVolumeAsync(0.4);
+            await processingSound.current.playAsync();
+          }
+        } catch (err) {
+          console.error('Failed to play processing sound:', err);
+        }
+      } else {
+        if (processingSound.current) {
+          try {
+            await processingSound.current.stopAsync();
+            await processingSound.current.setIsLoopingAsync(false);
+          } catch {}
+        }
+      }
+    };
+    manageProcessingSound();
+  }, [isLoading]);
 
   useImperativeHandle(ref, () => ({
     startRecording,
@@ -68,7 +103,7 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
       setIsLoading(true);
 
       if (dingSound.current) {
-        await dingSound.current.setVolumeAsync(0.3); 
+        await dingSound.current.setVolumeAsync(0.3);
         await dingSound.current.playFromPositionAsync(0);
       }
 
@@ -115,8 +150,7 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
       if (uri) {
         if (recordingDuration > 500) {
           await uploadAudio(uri);
-        }
-        else {
+        } else {
           console.log('Recording too short, not uploading.');
           speakMessage('Recording was too short.');
         }
@@ -135,15 +169,11 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
     try {
       const response = await fetch(`${API_URL}/text-to-speech`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: message }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
       const audioBlob = await response.blob();
       const reader = new FileReader();
@@ -173,7 +203,7 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
         const formData = new FormData();
         const audioBlobResponse = await fetch(audioUri);
         const blob = await audioBlobResponse.blob();
-        formData.append('audio_file', blob, 'audio.wav'); // Changed field name to 'audio_file'
+        formData.append('audio_file', blob, 'audio.wav'); // field name should match backend expectation
 
         console.log('Uploading audio to:', `${API_URL}/awaaz-command`);
         const webResponse = await fetch(`${API_URL}/awaaz-command`, {
@@ -184,20 +214,16 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
         if (webResponse.ok) {
           const responseData = await webResponse.json();
           console.log('API Response:', responseData);
-          if (onEmpatheticText) {
-            onEmpatheticText(responseData);
-          }
+          if (onEmpatheticText) onEmpatheticText(responseData);
         } else {
           const errorText = await webResponse.text();
           console.error('Transcription API Error:', webResponse.status, errorText);
           setError(`Error: ${webResponse.status} - ${errorText}`);
         }
       } else {
-        // For native (iOS/Android), use FileSystem.uploadAsync
+        // Native (iOS/Android)
         const fileInfo = await FileSystem.getInfoAsync(audioUri);
-        if (!fileInfo.exists) {
-          throw new Error('Audio file does not exist.');
-        }
+        if (!fileInfo.exists) throw new Error('Audio file does not exist.');
         const fileExtension = audioUri.split('.').pop();
         const fileName = `recording.${fileExtension || 'm4a'}`;
         const mimeType = `audio/${fileExtension || 'm4a'}`;
@@ -209,17 +235,15 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
           {
             httpMethod: 'POST',
             uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-            fieldName: 'audio_file', 
+            fieldName: 'audio_file',
             mimeType: mimeType,
           }
         );
 
-        if (nativeResponse.status === 200) { // Assuming 200 OK for success
+        if (nativeResponse.status === 200) {
           const responseData = JSON.parse(nativeResponse.body);
           console.log('API Response:', responseData);
-          if (onEmpatheticText) {
-            onEmpatheticText(responseData);
-          }
+          if (onEmpatheticText) onEmpatheticText(responseData);
         } else {
           console.error('Transcription API Error:', nativeResponse.status, nativeResponse.body);
           setError(`Error: ${nativeResponse.status} - ${nativeResponse.body}`);
@@ -247,12 +271,12 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
         style={[styles.button, isLoading && styles.buttonLoading]}
         onPress={handlePress}
         disabled={isLoading}
-        accessibilityLabel={isRecording ? "Stop recording" : "Start recording"}
+        accessibilityLabel={isRecording ? 'Stop recording' : 'Start recording'}
       >
         {isLoading ? (
           <Text>Processing...</Text>
         ) : (
-          <FontAwesome name={isRecording ? "stop-circle" : "microphone"} size={80} color="black" />
+          <FontAwesome name={isRecording ? 'stop-circle' : 'microphone'} size={80} color="black" />
         )}
       </TouchableOpacity>
       {error && <Text style={styles.errorText}>{error}</Text>}
