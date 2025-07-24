@@ -8,7 +8,7 @@ import { Audio } from 'expo-av';
 // Assuming your backend is running locally on the same Wi-Fi
 // For local development, use your machine's local IP address or localhost
 // For web, 'localhost' should work. For physical devices, use your machine's IP.
-// const API_URL = 'http://10.137.215.219:8000'; // Adjust if your backend is on a different IP
+// const API_URL = 'http://10.101.235.252:8000'; // Adjust if your backend is on a different IP
 const API_URL = 'http://127.0.0.1:8000'; // Adjust if your backend is on a different IP
 
 
@@ -26,6 +26,7 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dingSound = useRef<Audio.Sound | null>(null);
+  const recordingStartTime = useRef<number | null>(null);
 
   useEffect(() => {
     const loadSound = async () => {
@@ -82,6 +83,7 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
       audioRecorder.record();
       setIsRecording(true);
       setIsLoading(false);
+      recordingStartTime.current = Date.now();
       console.log('Recording started');
     } catch (err) {
       console.error('Failed to start recording', err);
@@ -109,9 +111,15 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
       }
       const uri = audioRecorder.uri;
       console.log('Recording stopped and stored at', uri);
-
+      const recordingDuration = recordingStartTime.current ? Date.now() - recordingStartTime.current : 0;
       if (uri) {
-        await uploadAudio(uri);
+        if (recordingDuration > 500) {
+          await uploadAudio(uri);
+        }
+        else {
+          console.log('Recording too short, not uploading.');
+          speakMessage('Recording was too short.');
+        }
       } else {
         setError('Failed to get recording URI.');
       }
@@ -120,6 +128,40 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
       setError('Failed to stop recording.');
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function speakMessage(message: string) {
+    try {
+      const response = await fetch(`${API_URL}/text-to-speech`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: message }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const audioBlob = await response.blob();
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      reader.onloadend = async () => {
+        const base64data = reader.result;
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: base64data as string },
+          { shouldPlay: true }
+        );
+        sound.setOnPlaybackStatusUpdate(async (status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            await sound.unloadAsync();
+          }
+        });
+      };
+    } catch (error) {
+      console.error('Error playing audio:', error);
     }
   }
 
@@ -167,9 +209,8 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
           {
             httpMethod: 'POST',
             uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-            fieldName: 'audio_file', // Changed field name to 'audio_file'
+            fieldName: 'audio_file', 
             mimeType: mimeType,
-            // fileName is not a valid option for MULTIPART uploadType
           }
         );
 
