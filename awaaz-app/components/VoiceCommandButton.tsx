@@ -1,5 +1,5 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
-import { View, TouchableOpacity, StyleSheet, Text, Platform } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Text, Platform, Alert } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useAudioRecorder, AudioModule, RecordingPresets } from 'expo-audio';
 import * as FileSystem from 'expo-file-system';
@@ -44,6 +44,7 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
         processingSound.current = processing;
       } catch (error) {
         console.error('Failed to load sounds:', error);
+        setError('Failed to load essential sounds. Please restart the app.');
       }
     };
 
@@ -51,9 +52,16 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
 
     (async () => {
       if (Platform.OS !== 'web') {
-        const { granted } = await AudioModule.requestRecordingPermissionsAsync();
-        if (!granted) {
-          setError('Permission to access microphone is required!');
+        try {
+          const { granted } = await AudioModule.requestRecordingPermissionsAsync();
+          if (!granted) {
+            setError('Permission to access microphone is required to use voice commands!');
+            Alert.alert("Permission Required", "Microphone access is needed for voice commands. Please enable it in your device settings.");
+          }
+        } catch (permissionError) {
+          console.error('Failed to request microphone permission:', permissionError);
+          setError('Failed to request microphone permission.');
+          Alert.alert("Error", "Could not request microphone permission. Please check your device settings.");
         }
       }
     })();
@@ -173,25 +181,34 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
         body: JSON.stringify({ text: message }),
       });
 
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
 
       const audioBlob = await response.blob();
       const reader = new FileReader();
       reader.readAsDataURL(audioBlob);
       reader.onloadend = async () => {
-        const base64data = reader.result;
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: base64data as string },
-          { shouldPlay: true }
-        );
-        sound.setOnPlaybackStatusUpdate(async (status) => {
-          if (status.isLoaded && status.didJustFinish) {
-            await sound.unloadAsync();
-          }
-        });
+        try {
+          const base64data = reader.result;
+          const { sound } = await Audio.Sound.createAsync(
+            { uri: base64data as string },
+            { shouldPlay: true }
+          );
+          sound.setOnPlaybackStatusUpdate(async (status) => {
+            if (status.isLoaded && status.didJustFinish) {
+              await sound.unloadAsync();
+            }
+          });
+        } catch (audioLoadError) {
+          console.error('Error loading or playing message audio:', audioLoadError);
+          Alert.alert("Error", "Failed to play system message.");
+        }
       };
     } catch (error) {
-      console.error('Error playing audio:', error);
+      console.error('Error fetching or playing message audio:', error);
+      Alert.alert("Error", "Failed to communicate with the server for system messages.");
     }
   }
 

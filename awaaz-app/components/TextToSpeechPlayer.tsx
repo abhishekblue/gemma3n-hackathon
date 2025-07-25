@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Audio } from 'expo-av';
+import { Alert } from 'react-native'; // Import Alert for user feedback
 import { insertMedicine } from '../database';
 import { scheduleRemindersForMedicine } from '../utils/NotificationManager';
 import * as Notifications from 'expo-notifications';
@@ -51,7 +52,6 @@ const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, 
 
       try {
         const response = await fetch('http://127.0.0.1:8000/text-to-speech', {
-        // const response = await fetch('http://10.101.235.252:8000/text-to-speech', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -60,77 +60,90 @@ const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, 
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          const errorText = await response.text();
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
         console.log("Audio stream received, attempting to load and play...");
         const audioBlob = await response.blob();
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
+
         reader.onloadend = async () => {
-          const base64data = reader.result;
-          const newTtsSound = new Audio.Sound();
-          setTtsSound(newTtsSound);
+          try {
+            const base64data = reader.result;
+            const newTtsSound = new Audio.Sound();
+            setTtsSound(newTtsSound);
 
-          newTtsSound.setOnPlaybackStatusUpdate(async (status) => {
-            console.log("Playback status update:", status);
-            if (status.isLoaded && status.didJustFinish) {
-              if (ttsSound) {
-                await ttsSound.unloadAsync();
-                setTtsSound(null);
-              }
-              
-              if (response_data.is_final) {
-                // Perform action first if it's an add_medicine action
-                if (response_data.action === "add_medicine" && response_data.data) {
-                  await insertMedicine(
-                    response_data.data.name,
-                    response_data.data.strength,
-                    response_data.data.times // Changed from frequency to times
-                  );
-                  console.log("Medicine saved to database:", response_data.data);
-                  const permissionStatus = await Notifications.getPermissionsAsync();
-                  console.log("Permission status:", permissionStatus);
-
-                  // Schedule reminders for the newly added medicine
-                  if (response_data.data) {
-                    console.log("Attempting to schedule reminders with data:", response_data.data);
-                    await scheduleRemindersForMedicine({
-                      name: response_data.data.name,
-                      dosage: response_data.data.strength,
-                      times: response_data.data.times,
-                    });
-                  } else {
-                    console.log("No data available to schedule reminders.");
-                  }
+            newTtsSound.setOnPlaybackStatusUpdate(async (status) => {
+              console.log("Playback status update:", status);
+              if (status.isLoaded && status.didJustFinish) {
+                if (ttsSound) {
+                  await ttsSound.unloadAsync();
+                  setTtsSound(null);
                 }
 
-                // Then handle ending sound playback
-                if (endingSound.current) {
-                  await endingSound.current.setVolumeAsync(0.3);
-                  await endingSound.current.playFromPositionAsync(0);
+                if (response_data.is_final) {
+                  // Perform action first if it's an add_medicine action
+                  if (response_data.action === "add_medicine" && response_data.data) {
+                    try {
+                      await insertMedicine(
+                        response_data.data.name,
+                        response_data.data.strength,
+                        response_data.data.times
+                      );
+                      console.log("Medicine saved to database:", response_data.data);
+                      const permissionStatus = await Notifications.getPermissionsAsync();
+                      console.log("Permission status:", permissionStatus);
 
-                  const endingSoundListener = (endingStatus: any) => {
-                    if (endingStatus.isLoaded && endingStatus.didJustFinish) {
-                      onSpeechFinish && onSpeechFinish();
-                      endingSound.current?.setOnPlaybackStatusUpdate(null); // Clean up listener
+                      // Schedule reminders for the newly added medicine
+                      if (response_data.data) {
+                        console.log("Attempting to schedule reminders with data:", response_data.data);
+                        await scheduleRemindersForMedicine({
+                          name: response_data.data.name,
+                          dosage: response_data.data.strength,
+                          times: response_data.data.times,
+                        });
+                      } else {
+                        console.log("No data available to schedule reminders.");
+                      }
+                    } catch (dbError) {
+                      console.error('Error saving medicine or scheduling reminders:', dbError);
+                      Alert.alert("Error", "Failed to save medicine or schedule reminders. Please try again.");
                     }
-                  };
-                  endingSound.current.setOnPlaybackStatusUpdate(endingSoundListener);
-                } else {
-                  // If endingSound is not available, call onSpeechFinish immediately
-                  onSpeechFinish && onSpeechFinish();
-                }
-              } else {
-                startRecording && startRecording();
-              }
-            }
-          });
+                  }
 
-          await newTtsSound.loadAsync({ uri: base64data as string }, { shouldPlay: true });
+                  // Then handle ending sound playback
+                  if (endingSound.current) {
+                    await endingSound.current.setVolumeAsync(0.3);
+                    await endingSound.current.playFromPositionAsync(0);
+
+                    const endingSoundListener = (endingStatus: any) => {
+                      if (endingStatus.isLoaded && endingStatus.didJustFinish) {
+                        onSpeechFinish && onSpeechFinish();
+                        endingSound.current?.setOnPlaybackStatusUpdate(null); // Clean up listener
+                      }
+                    };
+                    endingSound.current.setOnPlaybackStatusUpdate(endingSoundListener);
+                  } else {
+                    // If endingSound is not available, call onSpeechFinish immediately
+                    onSpeechFinish && onSpeechFinish();
+                  }
+                } else {
+                  startRecording && startRecording();
+                }
+              }
+            });
+
+            await newTtsSound.loadAsync({ uri: base64data as string }, { shouldPlay: true });
+          } catch (audioLoadError) {
+            console.error('Error loading or playing audio sound:', audioLoadError);
+            Alert.alert("Error", "Failed to process audio. Please try again.");
+          }
         };
 
       } catch (error) {
-        console.error('Error playing audio:', error);
+        console.error('Error fetching or playing audio:', error);
+        Alert.alert("Error", "Failed to get audio response from the server. Please check your network connection and try again.");
       }
     };
 

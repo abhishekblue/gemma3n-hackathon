@@ -8,6 +8,9 @@ from services_audio_processing import process_audio_command
 from services_tts_service import generate_piper_speech
 from services_ollama_service import generate_ollama_response # Import Ollama service
 import logging
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.exception_handlers import http_exception_handler
 
 # Define the lifespan context manager
 @asynccontextmanager
@@ -23,6 +26,22 @@ async def lifespan(app: FastAPI):
     yield # Application startup
 
 app = FastAPI(lifespan=lifespan) # Pass lifespan to FastAPI
+
+@app.exception_handler(StarletteHTTPException)
+async def custom_http_exception_handler(request, exc):
+    logging.error(f"HTTP Exception: {exc.detail} (Status Code: {exc.status_code})")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"message": exc.detail},
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    logging.error(f"Unhandled Exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"message": "An unexpected error occurred."},
+    )
 
 origins = ["*"]
 app.add_middleware(
