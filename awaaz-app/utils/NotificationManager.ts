@@ -1,11 +1,18 @@
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 interface Medicine {
   name: string;
   dosage: string;
   times: string[]; // Example: ["18:30", "21:00"]
 }
+
 export async function scheduleRemindersForMedicine(medicine: Medicine) {
+  if (Platform.OS === 'web') {
+    console.warn('Notifications are not supported on web platforms.');
+    return;
+  }
+
   // ✅ Check and request notification permissions
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;

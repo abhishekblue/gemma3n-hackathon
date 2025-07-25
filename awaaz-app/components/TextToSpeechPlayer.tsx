@@ -50,8 +50,8 @@ const TextToSpeechPlayer: React.FC<TextToSpeechPlayerProps> = ({ response_data, 
       if (!response_data || !response_data.response_text) return;
 
       try {
-        // const response = await fetch('http://127.0.0.1:8000/text-to-speech', {
-        const response = await fetch('http://10.101.235.252:8000/text-to-speech', {
+        const response = await fetch('http://127.0.0.1:8000/text-to-speech', {
+        // const response = await fetch('http://10.101.235.252:8000/text-to-speech', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
