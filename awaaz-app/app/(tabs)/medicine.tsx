@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, Button, FlatList, SafeAreaView, Alert } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { StyleSheet, Text, FlatList, SafeAreaView } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { getMedicines } from '../../database';
 
 
@@ -13,21 +14,22 @@ export default function MedicineScreen() {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [status, setStatus] = useState('Idle');
 
-  useEffect(() => {
-    // Initial load of medicines without playing audio automatically
-    const initialLoad = async () => {
-      try {
-        const storedMedicines = await getMedicines();
-        setMedicines(storedMedicines);
-        setStatus('Medicines loaded from storage.');
-        // Do NOT call ttsPlayerRef.current.loadAndPlay() here
-      } catch (error) {
-        console.error("Failed to load medicines from storage:", error);
-        setStatus('Failed to load medicines from storage.');
-      }
-    };
-    initialLoad();
-  }, [medicines]);
+  useFocusEffect(
+    useCallback(() => {
+      const loadMedicines = async () => {
+        try {
+          const storedMedicines = await getMedicines();
+          setMedicines(storedMedicines);
+          setStatus('Medicines loaded from storage.');
+        } catch (error) {
+          console.error("Failed to load medicines from storage:", error);
+          setStatus('Failed to load medicines from storage.');
+        }
+      };
+
+      loadMedicines();
+    }, [])
+  );
 
 
   return (
