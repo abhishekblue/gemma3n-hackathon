@@ -1,51 +1,187 @@
-# Welcome to your Expo app 👋
+# Awaaz - Voice Assistant for Blind Users
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A fully offline voice assistant application designed specifically for blind and visually impaired users. Built for accessibility and ease of use with audio feedback and voice commands.
 
-## Get started
+## 🎯 Project Overview
 
-1. Install dependencies
+**Awaaz** is a 2-device voice assistant system that helps blind users interact with technology through voice commands and audio responses. The app provides medicine reminders, habit tracking, and empathetic conversations.
 
+### Architecture
+- **Frontend**: Expo React Native (Mobile App)
+- **Backend**: FastAPI (PC/Laptop)
+- **Connection**: Local hotspot network (Fully Offline)
+- **Target Users**: Blind and visually impaired individuals
+
+## 🚀 Features
+
+- **Voice Commands**: Natural language processing for user commands
+- **Audio Feedback**: Text-to-speech responses and audio cues
+- **Medicine Reminders**: Medication timing and notification system
+- **Habit Tracking**: Daily habit monitoring with voice input
+- **QR Code Setup**: Automatic network configuration between devices
+- **Accessibility First**: Designed specifically for screen reader compatibility
+
+## 📋 Prerequisites
+
+### Backend (PC/Laptop)
+- Python 3.8+
+- FastAPI
+- Uvicorn
+- Required Python packages (see `requirements.txt`)
+
+### Frontend (Mobile)
+- Node.js 16+
+- Expo CLI
+- React Native development environment
+- Android/iOS device or emulator
+
+## 🛠️ Installation & Setup
+
+### Backend Setup (PC/Laptop)
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/abhishekblue/gemma3n-hackathon.git
+   cd gemma3n-hackathon
+   ```
+
+2. **Install Python dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Start the FastAPI backend**
+   ```bash
+   uvicorn main:app --host 0.0.0.0 --port 8000
+   ```
+
+4. **Note the displayed IP address** - it will show a QR code for easy mobile connection
+
+### Frontend Setup (Mobile)
+
+1. **Navigate to the app directory**
+   ```bash
+   cd awaaz-app
+   ```
+
+2. **Install dependencies**
    ```bash
    npm install
    ```
 
-2. Start the app
-
+3. **Start the Expo development server**
    ```bash
-   npx expo start
+   expo start
    ```
 
-In the output, you'll find options to open the app in a
+4. **Connect your mobile device** via Expo Go app or development build
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 📱 Usage Instructions
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### For Hackathon Judges/Demo
 
-## Get a fresh project
+1. **Setup Backend**: Start the FastAPI server on your laptop
+2. **Connect Mobile**: Open the Awaaz app on your mobile device
+3. **QR Code Setup**: Scan the QR code displayed by the backend to auto-configure connection
+4. **Test Voice Commands**: Tap the microphone button and speak commands
+5. **Experience Audio Feedback**: Listen to the app's spoken responses
 
-When you're ready, run:
+### Voice Commands Examples
+- "Remind me to take medicine at 8 AM"
+- "What are my daily habits?"
+- "How am I doing today?"
+- "Set a reminder for tomorrow"
 
-```bash
-npm run reset-project
+## 🔧 Technical Architecture
+
+```
+┌─────────────────┐    Local Hotspot    ┌──────────────────┐
+│   Mobile App    │ ◄─────────────────► │   PC/Laptop      │
+│  (React Native) │    QR Code Setup    │   (FastAPI)      │
+│                 │                     │                  │
+│ - Voice Input   │                     │ - Audio Process  │
+│ - Audio Output  │                     │ - AI Responses   │
+│ - UI/UX         |                     |                  |
+| - Data Storage  |                     │                  │
+└─────────────────┘                     └──────────────────┘
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## 📂 Project Structure
 
-## Learn more
+```
+gemma3n-hackathon/
+├── awaaz-app/                 # React Native frontend
+│   ├── components/           
+│   │   ├── VoiceCommandButton.tsx
+│   │   ├── AddMedicineCommand.js
+│   │   └── HabitTable.tsx
+│   ├── assets/sounds/        # Audio files
+│   └── App.js
+├── backend/                  # FastAPI backend
+│   ├── main.py
+│   ├── audio_processing.py
+│   └── requirements.txt
+└── README.md
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## 🎵 Audio Assets
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Ensure these audio files are present in `awaaz-app/assets/sounds/`:
+- `ding.mp3` - Recording start sound
+- `ending.mp3` - Converstaion finished sound
+- `processing.mp3` - Processing feedback sound
 
-## Join the community
+## 🌐 Network Configuration
 
-Join our community of developers creating universal apps.
+The app uses **automatic IP detection** and **QR code setup**:
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+1. Backend auto-detects its IP address on the local network
+2. Generates a QR code with connection details
+3. Mobile app scans QR code to automatically configure API endpoint
+4. No manual IP address entry required
 
+## 🔒 Offline Operation
+
+This application is designed to work **completely offline**:
+- No internet connection required
+- All processing happens locally
+- Data stored on local devices
+- Perfect for privacy-conscious users
+
+## 🏆 Hackathon Submission
+
+This project is designed for easy evaluation:
+- **Quick Setup**: QR code eliminates manual configuration
+- **Clear Demo Flow**: Voice commands → Audio responses
+- **Accessibility Focus**: Built for blind users from ground up
+- **Offline First**: No external dependencies
+
+## 🛟 Troubleshooting
+
+### Common Issues
+
+1. **Connection Failed**: Ensure both devices are on the same hotspot network
+2. **Audio Not Playing**: Check device volume and audio permissions
+3. **QR Code Not Working**: Manually set API URL in the mobile app
+4. **Backend Not Starting**: Check if port 8000 is available
+
+### Debug Commands
+```bash
+# Check backend status
+curl http://YOUR_IP:8000/health
+
+# View backend logs
+uvicorn main:app --host 0.0.0.0 --port 8000 --log-level debug
+```
+
+## 👥 Contributing
+
+This is a hackathon project, but contributions for accessibility improvements are welcome.
+
+## 📄 License
+
+MIT License - Feel free to use this project to help the visually impaired community.
+
+**Made with ❤️ for accessibility and inclusion**
+
+*Empowering blind users through voice technology*
