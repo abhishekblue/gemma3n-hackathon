@@ -29,7 +29,15 @@
 
 ## Screenshots
 
-> *(Include 1–2 screenshots of the main app UI, the medication reminder flow, or your architecture diagram here. Use alt-text for accessibility. If you don’t have time, you can skip this section.)*
+<img src="awaaz-app/assets/images/screenshot1.png" alt="Main screen with mic button" width="300"/>
+
+<p><em>Main screen - voice-first, minimal UI for accessibility</em></p>
+
+<img src="awaaz-app/assets/images/screenshot2.png" alt="Stored Medicine List" width="300"/>
+
+<p><em>Medicine list screen – medicines and timings visible via voice and audio cues</em></p>
+
+
 
 ---
 
