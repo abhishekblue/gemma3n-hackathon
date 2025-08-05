@@ -8,7 +8,8 @@
 
 ## 🎬 Demo Video
 
-[▶️ Watch the Demo](DEMO_LINK)
+[▶️ Watch the Demo (Youtube)](https://youtu.be/3JJZoRCVzas)  
+[▶️ Watch the Demo (Twitter)](https://x.com/jainwinperson/status/1952855035194556748)
 
 *To fully experience Awaaz, use an Android device + a secondary device (PC or Android phone) as described below.*
 
