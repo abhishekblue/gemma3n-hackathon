@@ -1,187 +1,338 @@
 # Awaaz - Voice Assistant for Blind Users
 
-A fully offline voice assistant application designed specifically for blind and visually impaired users. Built for accessibility and ease of use with audio feedback and voice commands.
+**Awaaz is a fully offline, voice-first AI health companion built for blind and visually impaired users.**
+**Unlike mainstream assistants, Awaaz works entirely without the internet, delivering privacy, independence, and critical health reminders-even in rural and low-connectivity areas.**
+**Built for the Gemma 3n Hackathon, my mission is simple: Empower users too often ignored by big tech.**
 
-## 🎯 Project Overview
+---
 
-**Awaaz** is a 2-device voice assistant system that helps blind users interact with technology through voice commands and audio responses. The app provides medicine reminders, habit tracking, and empathetic conversations.
+## 🎬 Demo Video
 
-### Architecture
-- **Frontend**: Expo React Native (Mobile App)
-- **Backend**: FastAPI (PC/Laptop)
-- **Connection**: Local hotspot network (Fully Offline)
-- **Target Users**: Blind and visually impaired individuals
+[▶️ Watch the Demo](DEMO_LINK)
 
-## 🚀 Features
+*To fully experience Awaaz, use an Android device + a secondary device (PC or Android phone) as described below.*
 
-- **Voice Commands**: Natural language processing for user commands
-- **Audio Feedback**: Text-to-speech responses and audio cues
-- **Medicine Reminders**: Medication timing and notification system
-- **Habit Tracking**: Daily habit monitoring with voice input
-- **QR Code Setup**: Automatic network configuration between devices
-- **Accessibility First**: Designed specifically for screen reader compatibility
+---
 
-## 📋 Prerequisites
+## Judging Criteria Highlights
 
-### Backend (PC/Laptop)
-- Python 3.8+
-- FastAPI
-- Uvicorn
-- Required Python packages (see `requirements.txt`)
+* **Impact & Vision:**
+  Offline AI health support for blind users; privacy-first, built for real-world needs.
 
-### Frontend (Mobile)
-- Node.js 16+
-- Expo CLI
-- React Native development environment
-- Android/iOS device or emulator
+* **Video Pitch & Storytelling:**
+  Engaging demo focused on accessibility and user experience.
 
-## 🛠️ Installation & Setup
+* **Technical Depth & Execution:**
+  Fully functional offline AI using Gemma 3n and Ollama; robust, accessible engineering.
 
-### Backend Setup (PC/Laptop)
+---
 
-1. **Clone the repository**
+## Screenshots
+
+> *(Include 1–2 screenshots of the main app UI, the medication reminder flow, or your architecture diagram here. Use alt-text for accessibility. If you don’t have time, you can skip this section.)*
+
+---
+
+## Project Overview
+
+**Awaaz** is a two-device, peer-to-peer voice assistant system that empowers blind users to manage their health through natural conversation.
+It provides medicine reminders with empathetic dialogue-powered entirely offline using Google’s Gemma 3n model.
+
+---
+
+### How It Works
+
+* **Primary Device:** Android phone (the blind user's device) running the Awaaz app.
+* **Secondary Device:** PC (or any Linux/Mac/Windows computer) running the "Awaaz Engine" backend (Ollama with Gemma 3n).\
+*(Edge devices like NVIDIA Jetson are planned for future releases.)*
+* **Connection:** Local Wi-Fi hotspot - **No Internet Required**.
+
+---
+
+## Why Awaaz Stands Out
+
+* **True Offline Voice AI:** All processing happens locally-no user data ever leaves their hands.
+* **Privacy by Design:** No cloud processing, no third-party data sharing, ever.
+* **Real Accessibility:** Designed based on interviews with blind students-fully audio, screen reader compatible, feedback on all actions.
+
+---
+
+## Key Features
+
+* **Voice Commands:** Natural language processing with cancel/clear support.
+* **Audio Feedback:** Text-to-speech responses and audio cues for every action.
+* **Medicine Reminders:** Notification system for scheduled medication times.
+* **Hotspot Connection:** Direct, peer-to-peer app-to-engine link (no router needed).
+* **Recording Validation:** Smart feedback for very short or failed voice recordings.
+* **Accessibility First:** Designed for simple, voice-first interaction and minimal visual clutter.
+
+---
+
+## Prerequisites
+
+### Backend (Secondary Device: PC/Laptop)
+
+* Python 3.8+
+* FastAPI
+* Uvicorn
+* Ollama (with Gemma 3n model)
+* Required Python packages (`requirements.txt`)
+
+### Frontend (Primary Device: Android Phone)
+
+* Node.js 16+
+* Expo CLI
+* React Native development environment
+* Android device or emulator
+* Expo Go app (for local testing)
+
+---
+
+## Installation & Setup
+
+### Backend Setup (Secondary Device)
+
+1. **Clone the Repository**
+
    ```bash
    git clone https://github.com/abhishekblue/gemma3n-hackathon.git
    cd gemma3n-hackathon
    ```
+2. **Create Virtual Environment**
 
-2. **Install Python dependencies**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+3. **Install Python Dependencies**
+
    ```bash
    pip install -r requirements.txt
    ```
+4. **Install Ollama & Gemma 3n**
 
-3. **Start the FastAPI backend**
+   ```bash
+   # Install Ollama
+   curl -fsSL https://ollama.ai/install.sh | sh
+
+   # Pull Gemma 3n model
+   ollama pull gemma3n:e2b-it-q4_K_M
+   ```
+5. **Setup STT and TTS Models**
+
+   - **Speech-to-Text (STT):**  
+     Download and place the [Vosk](https://alphacephei.com/vosk/) model `vosk-model-en-us-0.22-lgraph` in the `stt-model/` directory.
+
+   - **Text-to-Speech (TTS):**  
+     Download and place the [Piper](https://github.com/rhasspy/piper) model `en_US-hfc_female-medium.onnx.json` in the `tts-model/` directory.
+
+   - *(See the Vosk and Piper documentation for more on downloading and setting up these models.)*
+
+6. **Start the Backend**
+
    ```bash
    uvicorn main:app --host 0.0.0.0 --port 8000
    ```
+---
 
-4. **Note the displayed IP address** - it will show a QR code for easy mobile connection
+### Frontend Setup (Primary Device: Android)
 
-### Frontend Setup (Mobile)
+1. **Navigate to the App Directory**
 
-1. **Navigate to the app directory**
    ```bash
    cd awaaz-app
    ```
+2. **Install Dependencies**
 
-2. **Install dependencies**
    ```bash
    npm install
    ```
+3. **Install Expo CLI Globally (if not already installed)**
 
-3. **Start the Expo development server**
    ```bash
-   expo start
+   npm install -g @expo/cli
    ```
+4. **Start Development Server (optional)**
 
-4. **Connect your mobile device** via Expo Go app or development build
+   ```bash
+   npx expo start
+   ```
+5. **Production Build:**
 
-## 📱 Usage Instructions
+   * Build Android APK (`eas build -p android`) or use Expo Go for quick testing.
 
-### For Hackathon Judges/Demo
+---
 
-1. **Setup Backend**: Start the FastAPI server on your laptop
-2. **Connect Mobile**: Open the Awaaz app on your mobile device
-3. **QR Code Setup**: Scan the QR code displayed by the backend to auto-configure connection
-4. **Test Voice Commands**: Tap the microphone button and speak commands
-5. **Experience Audio Feedback**: Listen to the app's spoken responses
+### Network Connection Setup
 
-### Voice Commands Examples
-- "Remind me to take medicine at 8 AM"
-- "What are my daily habits?"
-- "How am I doing today?"
-- "Set a reminder for tomorrow"
+1. **Create Hotspot:** Enable hotspot on the secondary device or use a shared local network.
+2. **Connect Primary Device:** Connect your Android phone to the hotspot or local network.
+3. **Configure IP:** Enter the backend device's IP in the Awaaz app settings.
+4. **Test Connection:** Ensure backend and app can communicate (see Troubleshooting below).
 
-## 🔧 Technical Architecture
+---
+
+### Permissions Setup
+
+The mobile app requests:
+
+* **Microphone Access:** Voice commands
+* **Notification Permission:** Medicine reminders & alerts
+
+*If permissions are blocked, enable them manually in Android Settings → Apps → Awaaz-app → Permissions.*
+
+---
+
+## Usage Instructions
+
+1. **Start the Backend** on the secondary device.
+2. **Connect Both Devices** to the same hotspot or local network.
+3. **Set Backend IP in Code:**  
+   The backend IP address is hardcoded in the app’s source code.  
+   Before building the APK, update the IP address wherever it appears in the code.
+4. **Build and Install:**  
+   Rebuild the APK using `eas build` and install it on your Android device.
+5. **Use Voice Commands:** Tap the mic button and speak naturally.
+6. **Experience Audio Feedback** for all actions.
+
+> *Note: In this MVP, the backend IP is hardcoded in the app source code. A user-editable option is planned for future versions.*
+
+
+**Command Controls:**
+
+* Say “cancel” or “clear” to interrupt any operation.
+* Very short voice recordings trigger an instant audio prompt.
+
+---
+
+## Technical Architecture
+
+![Awaaz system architecture](awaaz-app/assets/images/awaaz-architecture.png)
+
+---
+
+## Project Structure
 
 ```
-┌─────────────────┐    Local Hotspot    ┌──────────────────┐
-│   Mobile App    │ ◄─────────────────► │   PC/Laptop      │
-│  (React Native) │    QR Code Setup    │   (FastAPI)      │
-│                 │                     │                  │
-│ - Voice Input   │                     │ - Audio Process  │
-│ - Audio Output  │                     │ - AI Responses   │
-│ - UI/UX         |                     |                  |
-| - Data Storage  |                     │                  │
-└─────────────────┘                     └──────────────────┘
-```
 
-## 📂 Project Structure
-
-```
 gemma3n-hackathon/
-├── awaaz-app/                 # React Native frontend
-│   ├── components/           
-│   │   ├── VoiceCommandButton.tsx
-│   │   ├── AddMedicineCommand.js
-│   │   └── HabitTable.tsx
-│   ├── assets/sounds/        # Audio files
-│   └── App.js
-├── backend/                  # FastAPI backend
+├── backend/                # FastAPI backend (Ollama/Gemma 3n integration)
 │   ├── main.py
-│   ├── audio_processing.py
+│   ├── stt-model/
+│   ├── tts-model/
 │   └── requirements.txt
+├── awaaz-app/              # React Native frontend (Android)
+│   ├── app/                # Main navigation and screens
+│   │   ├── (tabs)/
+│   │   ├── assets/
+│   │   ├── components/
+│   │   │   └── ui/
+│   │   ├── utils/
+│   │   └── ...
+│   ├── app.json
+│   ├── eas.json
+│   ├── package.json
+│   └── ...
 └── README.md
+
 ```
 
-## 🎵 Audio Assets
+---
 
-Ensure these audio files are present in `awaaz-app/assets/sounds/`:
-- `ding.mp3` - Recording start sound
-- `ending.mp3` - Converstaion finished sound
-- `processing.mp3` - Processing feedback sound
+## Audio Assets
 
-## 🌐 Network Configuration
+Audio cues for every interaction:
 
-The app uses **automatic IP detection** and **QR code setup**:
+- **ding.mp3** - Recording start sound
+- **ending.mp3** - Converstaion finished sound
+- **processing.mp3** - Processing feedback sound
 
-1. Backend auto-detects its IP address on the local network
-2. Generates a QR code with connection details
-3. Mobile app scans QR code to automatically configure API endpoint
-4. No manual IP address entry required
+---
 
-## 🔒 Offline Operation
+## Offline Operation
 
-This application is designed to work **completely offline**:
-- No internet connection required
-- All processing happens locally
-- Data stored on local devices
-- Perfect for privacy-conscious users
+* 100% offline-perfect for privacy and rural users.
+* All AI processing on local hardware (via Ollama + Gemma 3n).
+* STT & TTS models run locally.
+* All user data stays on device.
 
-## 🏆 Hackathon Submission
+---
 
-This project is designed for easy evaluation:
-- **Quick Setup**: QR code eliminates manual configuration
-- **Clear Demo Flow**: Voice commands → Audio responses
-- **Accessibility Focus**: Built for blind users from ground up
-- **Offline First**: No external dependencies
+## Final Product
 
-## 🛟 Troubleshooting
+* **Primary Device:** Android app (can be tested via Expo on PC)
+* **Secondary Device:** PC or Android phone with Ollama/Gemma 3n backend
+* **Connection:** Local hotspot network
+* **Deployment:** Mobile APK + backend setup
 
-### Common Issues
+---
 
-1. **Connection Failed**: Ensure both devices are on the same hotspot network
-2. **Audio Not Playing**: Check device volume and audio permissions
-3. **QR Code Not Working**: Manually set API URL in the mobile app
-4. **Backend Not Starting**: Check if port 8000 is available
+## Future Vision / Roadmap
 
-### Debug Commands
+Awaaz is not just a hackathon project-here’s how it can grow:
+
+* **Prescription Image Recognition** (phone camera integration)
+* **Integration with Government Health DBs** (for verified medication data)
+* **Multi-lingual Support** (Hindi, Tamil, and more)
+* **NVIDIA Jetson/Edge Device Support** (super-portable, low-power deployment)
+* **Community Feedback Loop:** Continuous improvement from real blind users and NGOs
+
+---
+
+## Troubleshooting
+
+**Common Issues**
+
+- **Connection Failed:** Check both devices are on the same network.
+- **IP Address Issues:** The backend device’s IP address may change if it’s assigned dynamically. Always double-check and update the hardcoded IP before building the APK.
+- **Firewall Blocking Connection:** Ensure your PC firewall (e.g., Windows Defender) or any antivirus is not blocking port 8000 or local network traffic.
+- **Audio Not Playing:** Check phone volume, permissions, or Android settings.
+- **Backend Not Starting:** Ensure port 8000 is free; run as admin if needed.
+- **Ollama Issues:** Confirm Gemma 3n model is downloaded and running (via `ollama serve`).
+- **Model Loading Issues:** Make sure STT/TTS models are present in the right folders.
+
+**Debug Commands**
+
 ```bash
 # Check backend status
-curl http://YOUR_IP:8000/health
+curl http://YOUR_IP:8000/
 
-# View backend logs
+# Check Ollama status
+ollama list
+
+# Backend logs
 uvicorn main:app --host 0.0.0.0 --port 8000 --log-level debug
+
+# Mobile app logs (Expo)
+expo start --clear
 ```
 
-## 👥 Contributing
+---
 
-This is a hackathon project, but contributions for accessibility improvements are welcome.
+## Contributing
 
-## 📄 License
+This is a hackathon project, but contributions for accessibility improvements are welcome!
 
-MIT License - Feel free to use this project to help the visually impaired community.
+---
 
-**Made with ❤️ for accessibility and inclusion**
+## License
 
-*Empowering blind users through voice technology*
+[MIT License](LICENSE) - Feel free to use this project to help the visually impaired community.
+
+---
+
+## Contact
+
+**Developer:** Abhishek Jain
+**Email:** [jainabhishekjain007@gmail.com](mailto:jainabhishekjain007@gmail.com)
+**GitHub:** [https://github.com/abhishekblue](https://github.com/abhishekblue)
+
+---
+
+**Made with care for accessibility and inclusion.**
+*Empowering blind users through voice technology.*
+
+**Hackathon Submission:** Google - The Gemma 3n Impact Challenge
+**Repository:** [https://github.com/abhishekblue/gemma3n-hackathon](https://github.com/abhishekblue/gemma3n-hackathon)
+
+---

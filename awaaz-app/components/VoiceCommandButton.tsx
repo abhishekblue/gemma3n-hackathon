@@ -8,8 +8,8 @@ import { Audio } from 'expo-av';
 // Assuming your backend is running locally on the same Wi-Fi
 // For local development, use your machine's local IP address or localhost
 // For web, 'localhost' should work. For physical devices, use your machine's IP.
-// const API_URL = 'http://10.101.235.252:8000'; // Adjust if your backend is on a different IP
-const API_URL = 'http://127.0.0.1:8000'; // Adjust if your backend is on a different IP
+const API_URL = 'http://10.161.128.186:8000'; // Adjust if your backend is on a different IP
+// const API_URL = 'http://127.0.0.1:8000'; // Adjust if your backend is on a different IP
 
 interface VoiceCommandButtonProps {
   onEmpatheticText: (response: { response_text: string; is_final: boolean }) => void;
@@ -31,6 +31,8 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
 
   // Load sounds and request permissions
   useEffect(() => {
+    console.log("usesCleartextTraffic is expected to be TRUE");
+
     const loadSounds = async () => {
       try {
         const { sound: ding } = await Audio.Sound.createAsync(
@@ -195,7 +197,7 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
     }
   }
 
-  async function uploadAudio(audioUri: string) {
+async function uploadAudio(audioUri: string) {
     setIsLoading(true);
     setError(null);
     try {
@@ -205,11 +207,13 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
         const blob = await audioBlobResponse.blob();
         formData.append('audio_file', blob, 'audio.wav'); // field name should match backend expectation
 
+
         console.log('Uploading audio to:', `${API_URL}/awaaz-command`);
         const webResponse = await fetch(`${API_URL}/awaaz-command`, {
           method: 'POST',
           body: formData,
         });
+
 
         if (webResponse.ok) {
           const responseData = await webResponse.json();
@@ -222,23 +226,29 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
         }
       } else {
         // Native (iOS/Android)
-        const fileInfo = await FileSystem.getInfoAsync(audioUri);
-        if (!fileInfo.exists) throw new Error('Audio file does not exist.');
-        const fileExtension = audioUri.split('.').pop();
-        const fileName = `recording.${fileExtension || 'm4a'}`;
-        const mimeType = `audio/${fileExtension || 'm4a'}`;
+        const newUri = FileSystem.documentDirectory + 'recording.m4a';
+        await FileSystem.copyAsync({ from: audioUri, to: newUri });
+        console.log("File copied to new safe location:", newUri);
+        // const fileInfo = await FileSystem.getInfoAsync(audioUri);
+        // if (!fileInfo.exists) throw new Error('Audio file does not exist.');
+        // const fileExtension = audioUri.split('.').pop();
+        // const fileName = `recording.${fileExtension || 'm4a'}`;
+        // const mimeType = `audio/${fileExtension || 'm4a'}`;
+
 
         console.log('Uploading audio to:', `${API_URL}/awaaz-command`, 'using FileSystem.uploadAsync');
         const nativeResponse = await FileSystem.uploadAsync(
           `${API_URL}/awaaz-command`,
-          audioUri,
+          newUri,
           {
             httpMethod: 'POST',
             uploadType: FileSystem.FileSystemUploadType.MULTIPART,
             fieldName: 'audio_file',
-            mimeType: mimeType,
+            // mimeType: mimeType,
+            mimeType: 'audio/m4a',
           }
         );
+
 
         if (nativeResponse.status === 200) {
           const responseData = JSON.parse(nativeResponse.body);
@@ -256,6 +266,7 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
       setIsLoading(false);
     }
   }
+
 
   const handlePress = () => {
     if (isRecording) {
@@ -276,7 +287,7 @@ const VoiceCommandButton = forwardRef<VoiceCommandButtonRef, VoiceCommandButtonP
         {isLoading ? (
           <Text>Processing...</Text>
         ) : (
-          <FontAwesome name={isRecording ? 'stop-circle' : 'microphone'} size={80} color="black" />
+          <FontAwesome name={isRecording ? 'stop-circle' : 'microphone'} size={120} color="black" />
         )}
       </TouchableOpacity>
       {error && <Text style={styles.errorText}>{error}</Text>}
@@ -292,9 +303,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5FCFF',
   },
   button: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+    width: 300,
+    height: 300,
+    borderRadius: 150,
     backgroundColor: '#E0E0E0',
     justifyContent: 'center',
     alignItems: 'center',

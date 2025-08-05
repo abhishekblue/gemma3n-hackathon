@@ -9,7 +9,6 @@ from services_tts_service import generate_piper_speech
 from services_ollama_service import generate_ollama_response # Import Ollama service
 import logging
 
-# Define the lifespan context manager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Cold start vroom...")  

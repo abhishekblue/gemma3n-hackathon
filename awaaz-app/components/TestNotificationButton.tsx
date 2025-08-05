@@ -23,12 +23,12 @@ const TestNotificationButton: React.FC = () => {
     await Notifications.scheduleNotificationAsync({
       content: {
         title: "Awaaz Reminder",
-        body: "This is a daily test notification wohoo!",
+        body: "This is a daily test notification from Awaaz App!",
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: 17,
-        minute: 32,
+        hour: 22,
+        minute: 6,
       },
     });
     alert('Daily notification scheduled');
@@ -56,10 +56,10 @@ const TestNotificationButton: React.FC = () => {
   return (
     <>
     <Button title="Schedule Notification" onPress={scheduleTestNotification} />
+    <Button title="Get All Scheduled Notifications" onPress={allScheduled} color="#009900"/>
     <Button title="Cancel All Notifications" onPress={cancelNotifications}
     color="#990000"
     />
-    <Button title="Get All Scheduled Notifications" onPress={allScheduled} color="#009900"/>
     <Button title="Clear All Storage" onPress={clearAllStorage} color="#990099"/>
     </>
   );

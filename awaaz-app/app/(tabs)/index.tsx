@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Button, SafeAreaView, StyleSheet } from 'react-native';
+import { Button, SafeAreaView, StyleSheet, View, Text, Platform, StatusBar } from 'react-native';
 import { getMedicines } from '../../database';
 import { formatMedicineSpeech } from '../../utils/speechFormatter';
 import VoiceCommandButton from '../../components/VoiceCommandButton';
@@ -9,11 +9,10 @@ import * as Notifications from 'expo-notifications';
 
 interface Medicine {
   name: string;
-  strength: string; // Changed from dosage to strength
-  times: string[]; // Changed from frequency to times
+  strength: string; 
+  times: string[]; 
 }
 
-// Extend the response interface to include action and data
 interface LlmResponseData {
   response_text: string;
   is_final: boolean;
@@ -21,7 +20,7 @@ interface LlmResponseData {
   data?: {
     name: string;
     strength: string;
-    times: string[]; // Changed from frequency to times
+    times: string[];
   };
 }
 
@@ -35,9 +34,7 @@ Notifications.setNotificationHandler({
 });
 
 export default function App() {
-  // const [llmResponse, setLlmResponse] = useState<{ response_text: string; is_final: boolean } | null>(null); // Commented out: Replaced by activeSpeech
   const voiceCommandButtonRef = useRef<{ startRecording: () => void }>(null);
-  // const [speechResponse, setSpeechResponse] = useState({ response_text: '', is_final: false }); // Commented out: Replaced by activeSpeech
   const [activeSpeech, setActiveSpeech] = useState<LlmResponseData | null>(null);
   const [medicines, setMedicines] = useState<Medicine[]>([]); // Kept for potential future use, though not displayed
   const [status, setStatus] = useState('Idle'); // Kept for potential future use, though not displayed
@@ -47,7 +44,6 @@ export default function App() {
     if (response.action === 'list_medicines') {
       loadMedicines();
     } else {
-      // Pass the entire response object, including is_final, action, and data
       setActiveSpeech(response); 
     }
   };
@@ -75,10 +71,12 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.headerBar}>
+        <Text style={styles.headerText}>Awaaz App (Medicine Guard)</Text>
+      </View>
       <VoiceCommandButton onEmpatheticText={handleLlmResponse} ref={voiceCommandButtonRef} />
-      {/* {llmResponse ? <TextToSpeechPlayer response_data={llmResponse} startRecording={startRecording} /> : null} */}
       {activeSpeech ? <TextToSpeechPlayer response_data={activeSpeech} onSpeechFinish={() => setActiveSpeech(null)} startRecording={startRecording} /> : null}
-      <Button
+        <Button
           title="Load Medicines"
           onPress={loadMedicines}
           color="#9955ff"
@@ -91,9 +89,21 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000', // You can set a background color here
+    backgroundColor: '#000',
+  },
+  headerBar: {
+    backgroundColor: '#000',
+    padding: 15,
+    marginTop: 5,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#555',
+  },
+  headerText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
   },
 });
-
-
-////////////////////////////////////////////////////////////////////////
